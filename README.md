@@ -18,6 +18,28 @@ Co-Stars Backend enables you to:
 - **Path Finding**: Find shortest paths between any two actors using BFS algorithm
 - **Duplicate Prevention**: Automatically skip movies that are already in the database
 
+## Versus Game Usage
+
+Start an interactive game between two actors:
+
+```python
+python versus_game.py
+```
+
+### How to Play
+
+1. Choose your starting actor (1 or 2)
+2. Select movies from that actor's filmography
+3. Choose a costar from the selected movie
+4. Continue until you reach the target actor
+5. Use the back option to undo moves and explore alternative paths
+
+**Features:**
+- Loop detection automatically rewinds to prevent circular paths
+- Backtracking support to explore different connections
+- Path validation confirms all connections exist in the database
+- Visual board display shows your current progression
+
 ## Project Structure
 
 ```
@@ -28,6 +50,7 @@ Co-Stars Backend enables you to:
 ├── populate_db.py        # Main script to populate the database with initial movies
 ├── path_utils.py         # Actor path-finding algorithms
 ├── query_scratch.py      # Query utilities and testing
+├── versus_game.py        # Interactive game mode to find connections between two actors with backtracking support
 └── movies.db             # SQLite database (generated after initialization)
 ```
 
