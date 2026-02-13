@@ -19,6 +19,13 @@ def main():
         550,                # Fight Club
         2501,               # Bourne Identity
         615777,             # Babylon
+        508,                # Love Actually
+        27205,              # Inception
+        414906,             # The Batman
+        546554,             # Knives Out
+        16869,              # Inglorious Basterds
+        286217,             # The Martian
+        206647,             # Spectre
     ]
 
     # 3️⃣ Ingest each movie

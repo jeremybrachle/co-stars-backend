@@ -157,14 +157,14 @@ def render_board(path, target_actor, turn_count, back_count):
     
     print("\n" + "=" * 80)
     print(f"{path[0]}   ↔   {target_actor}  |  Turn: {turn_count}  |  Depth: {depth}  |  Rewinds: {back_count}  |")
-    print("     ↓")
+    print("      ↓")
 
     indent = 0
     for node in path[1:]:
         indent += 4
         if node != target_actor:
             print(" " * indent + node)
-            print(" " * indent + "     ↓")
+            print(" " * indent + "      ↓")
         else:
             print(" " * indent + node + "  ←  Match found!")
 
@@ -413,4 +413,5 @@ def play_vs_game(actor1_name, actor2_name):
 # Entry
 # -----------------------------
 if __name__ == "__main__":
-    play_vs_game("George Clooney", "Tobey Maguire")
+    # play_vs_game("George Clooney", "Tobey Maguire")
+    play_vs_game("Matt Damon", "Daniel Craig")
