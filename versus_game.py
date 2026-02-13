@@ -271,7 +271,7 @@ def play_vs_game(actor1_name, actor2_name):
             print("\n🎉 Target reached!")
 
             if validate_path(path):
-                connections = (len(path) - 1) // 2
+                connections = (len(path) - 2) # // subtract 2 for the original actor and target actor
                 print(f"Valid path confirmed.")
                 print(f"Total connections: {connections}")
                 # print_victory_path(path)
