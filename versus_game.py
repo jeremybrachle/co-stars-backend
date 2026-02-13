@@ -91,66 +91,25 @@ def validate_path(path):
 # -----------------------------
 # Visual Renderer
 # -----------------------------
-# def render_board(path, target_actor):
-#     print("\n" + "=" * 80)
-
-#     # Header line with starting actor and target
-#     print(f"{path[0]}  ↔  {target_actor}")
-#     print("↓")
-    
-#     # Display path nodes (movies and actors)
-#     for i, node in enumerate(path[1:], 1):
-#         indent = i * 4
-#         print(" " * indent + node)
-#         print(" " * indent + "↓")
-    
-#     print("=" * 80)
-# def render_board(path, target_actor):
-#     print("\n" + "=" * 80)
-
-#     # Header line with starting actor and target
-#     print(f"{path[0]}  ↔  {target_actor}")
-#     print("↓")
-    
-#     # Check if we've reached the target
-#     is_victory = path[-1].lower() == target_actor.lower()
-    
-#     # Display path nodes (movies and actors), excluding final actor if victory
-#     end_index = len(path) - 1 if is_victory else len(path)
-    
-#     for i, node in enumerate(path[1:end_index], 1):
-#         indent = i * 4
-#         print(" " * indent + node)
-#         print(" " * indent + "↓")
-    
-#     print("=" * 80)
 def render_board(path, target_actor):
     print("\n" + "=" * 80)
 
-    depth = len(path) - 1   # grows on every addition
-    base_spacing = 4
-    extra_spacing = depth * 2   # tweak multiplier to taste
+    # Header line
+    print(f"{path[0]}   ↔   {target_actor}")
+    print("     ↓")
 
-    spacing = base_spacing + extra_spacing
+    indent = 0
 
-    print(f"{path[0]}{' ' * spacing}↔{' ' * spacing}{target_actor}")
-    print("↓")
-
-    is_victory = path[-1].lower() == target_actor.lower()
-
-    for i, node in enumerate(path[1:], 1):
-        indent = i * 4
-        print(" " * indent + node)
-
-        # Print arrow if:
-        # - Not the last node, OR
-        # - It is the last node but we haven't won yet
-        if i < len(path) - 1 or not is_victory:
-            print(" " * indent + "↓")
+    # Start from the first movie, not the first actor
+    for node in path[1:]:
+        indent += 4
+        if node != target_actor:
+            print(" " * indent + node)
+            print(" " * indent + "     ↓")
+        else:
+            print(" " * indent + node + "  ←  Match found!")
 
     print("=" * 80)
-
-
 
 # -----------------------------
 # Loop Rewind Logic
