@@ -27,20 +27,20 @@ def get_actor_by_name(name):
 
 
 def get_movies_for_actor(actor_id):
+    # Always return 6 random movies
     return run_query("""
         SELECT m.id, m.title
         FROM movies m
         JOIN movie_actors ma ON m.id = ma.movie_id
         WHERE ma.actor_id = ?
         ORDER BY RANDOM()
-        LIMIT 7
+        LIMIT 6
     """, (actor_id,))
 
 
 def get_costars_for_movie(movie_id, exclude_names):
-
     base_sql = """
-        SELECT a.id, a.name
+        SELECT a.id, a.name, a.popularity
         FROM actors a
         JOIN movie_actors ma ON a.id = ma.actor_id
         WHERE ma.movie_id = ?
@@ -53,12 +53,19 @@ def get_costars_for_movie(movie_id, exclude_names):
         base_sql += f" AND a.name NOT IN ({placeholders})"
         params.extend(exclude_names)
 
+    # Step 1: get random pool
     base_sql += """
-        ORDER BY a.popularity DESC
-        LIMIT 7
+        ORDER BY RANDOM()
+        LIMIT 20
     """
 
-    return run_query(base_sql, tuple(params))
+    random_pool = run_query(base_sql, tuple(params))
+
+    # Step 2: sort pool by popularity descending
+    sorted_pool = sorted(random_pool, key=lambda x: x[2], reverse=True)
+
+    # Step 3: return top 6
+    return [(row[0], row[1]) for row in sorted_pool[:6]]
 
 
 # -----------------------------
@@ -91,16 +98,17 @@ def validate_path(path):
 # -----------------------------
 # Visual Renderer
 # -----------------------------
-def render_board(path, target_actor):
+def render_board(path, target_actor, turn_count, back_count):
+    if target_actor == path[-1]:
+        depth = (len(path) - 2)
+    else:
+        depth = (len(path) - 1)
+    
     print("\n" + "=" * 80)
-
-    # Header line
-    print(f"{path[0]}   ↔   {target_actor}")
+    print(f"{path[0]}   ↔   {target_actor}  |  Turn: {turn_count}  |  Depth: {depth}  |  Rewinds: {back_count}  |")
     print("     ↓")
 
     indent = 0
-
-    # Start from the first movie, not the first actor
     for node in path[1:]:
         indent += 4
         if node != target_actor:
@@ -111,6 +119,7 @@ def render_board(path, target_actor):
 
     print("=" * 80)
 
+
 # -----------------------------
 # Loop Rewind Logic
 # -----------------------------
@@ -118,49 +127,15 @@ def rewind_if_loop(path, new_movie):
     if new_movie in path:
         first_index = path.index(new_movie)
 
-        # Movie indices should always be odd
         if first_index % 2 != 1:
-            return path  # safety guard
+            return path
 
-        rewind_index = first_index - 1  # go back to actor before movie
-
+        rewind_index = first_index - 1
         print(f"\n🔁 Loop detected. Rewinding to '{path[rewind_index]}'.")
         return path[:rewind_index + 1]
 
     return path
 
-def print_victory_path(path):
-    """
-    Prints the final validated path with alternating "was in" and "with" labels.
-    Format: actor → was in → movie → with → actor → was in → movie, etc.
-    """
-    print("\n" + "=" * 80)
-    print("🏆 VICTORY PATH 🏆")
-    print("=" * 80 + "\n")
-    
-    indent = 0
-    
-    for i, node in enumerate(path):
-        # Print the node
-        print(" " * indent + node)
-        
-        # Don't print arrow/label after the last node
-        if i < len(path) - 1:
-            indent += 4
-            
-            # Determine label based on position
-            # Even indices (0, 2, 4...) are actors, odd (1, 3, 5...) are movies
-            if i % 2 == 0:
-                # Current node is an actor, next is a movie
-                label = "was in"
-            else:
-                # Current node is a movie, next is an actor
-                label = "with"
-            
-            print(" " * (indent - 4) + "↓")
-            print(" " * (indent - 4) + label)
-    
-    print("\n" + "=" * 80)
 
 # -----------------------------
 # Game Loop
@@ -194,94 +169,121 @@ def play_vs_game(actor1_name, actor2_name):
     target_name = target_actor[1]
 
     path = [current_actor_name]
+    shuffle_count = 0
+    turn_count = 0
+    back_count = 0
 
     while True:
 
-        render_board(path, target_name)
+        render_board(path, target_name, turn_count, back_count)
 
-        # --- Movie selection ---
-        movies = get_movies_for_actor(current_actor_id)
-        if not movies:
-            print("No movies available.")
-            return
+        # -----------------------------
+        # MOVIE SELECTION
+        # -----------------------------
+        while True:
+            movies = get_movies_for_actor(current_actor_id)
 
-        # print("\nMovies:")
-        print(f"\nMovies starring {current_actor_name}:")
-        for i, (_, title) in enumerate(movies, 1):
-            print(f"{i}. {title}")
+            if not movies:
+                print("No movies available.")
+                return
 
-        # Allow back option if not first round
-        back_option = None
-        if len(path) > 1:
-            back_option = len(movies) + 1
-            print(f"{back_option}. ⬅ Back to previous actor")
+            print(f"\nMovies starring {current_actor_name}:")
+            for i, (_, title) in enumerate(movies, 1):
+                print(f"{i}. {title}")
 
-        # Handle back option
-        m_choice = input("Choose a movie: ").strip()
-        if back_option and m_choice.isdigit() and int(m_choice) == back_option:
-            removed_actor = path.pop()
-            removed_movie = path.pop()
-            print(f"\n↩ Returning from '{removed_actor}' via '{removed_movie}'.")
-            current_actor_name = path[-1]
-            current_actor_id = get_actor_by_name(current_actor_name)[0]
-            continue
+            print("7. 🔀 Shuffle")
+            print("8. ⬅ Back")
 
-        if not m_choice.isdigit() or not (1 <= int(m_choice) <= len(movies)):
-            print("Invalid choice.")
-            continue
+            m_choice = input("Choose a movie: ").strip()
 
-        movie_id, movie_title = movies[int(m_choice) - 1]
+            if m_choice == "" or m_choice == "7":
+                shuffle_count += 1
+                # print(f"\n🔀 Shuffled! Total reshuffles: {shuffle_count}")
+                continue
 
-        # Loop prevention
+            if m_choice == "8":
+                turn_count += 1
+                back_count += 1
+
+                if len(path) > 1:
+                    removed_actor = path.pop()
+                    removed_movie = path.pop()
+                    print(f"\n↩ Returning from '{removed_actor}' via '{removed_movie}'.")
+                    current_actor_name = path[-1]
+                    current_actor_id = get_actor_by_name(current_actor_name)[0]
+                else:
+                    print("Cannot go back further.")
+                continue
+
+            if not m_choice.isdigit() or not (1 <= int(m_choice) <= 6):
+                print("Invalid choice.")
+                continue
+
+            movie_id, movie_title = movies[int(m_choice) - 1]
+            turn_count += 1
+            break
+
         path = rewind_if_loop(path, movie_title)
         path.append(movie_title)
 
-        render_board(path, target_name)
+        render_board(path, target_name, turn_count, back_count)
 
-        # --- Costar selection ---
-        costars = get_costars_for_movie(movie_id, path)
-        if not costars:
-            print("No costars found.")
-            return
+        # -----------------------------
+        # COSTAR SELECTION
+        # -----------------------------
+        while True:
+            costars = get_costars_for_movie(movie_id, path)
 
-        # print("\nCostars:")
-        print(f"\nCostars in {movie_title}:")
-        for i, (_, name) in enumerate(costars, 1):
-            print(f"{i}. {name}")
+            if not costars:
+                print("No costars found.")
+                return
 
-        # print(f"{i+1}. ⬅ Back to previous movie")
-        back_option = len(costars) + 1
-        print(f"{back_option}. ⬅ Back to previous movie")
+            print(f"\nCostars in {movie_title}:")
+            for i, (_, name) in enumerate(costars, 1):
+                print(f"{i}. {name}")
 
-        a_choice = input("Choose a costar: ").strip()
+            print("7. 🔀 Shuffle")
+            print("8. ⬅ Back")
 
-        if a_choice.isdigit() and int(a_choice) == back_option:
-            removed_movie = path.pop()
-            print(f"\n↩ Returning from '{removed_movie}'.")
-            continue
+            a_choice = input("Choose a costar: ").strip()
 
+            if a_choice == "" or a_choice == "7":
+                shuffle_count += 1
+                # print(f"\n🔀 Shuffled! Total reshuffles: {shuffle_count}")
+                continue
 
+            if a_choice == "8":
+                turn_count += 1
+                back_count += 1
+                removed_movie = path.pop()
+                print(f"\n↩ Returning from '{removed_movie}'.")
+                break
 
-        next_actor_id, next_actor_name = costars[int(a_choice) - 1]
-        path.append(next_actor_name)
+            if not a_choice.isdigit() or not (1 <= int(a_choice) <= 6):
+                print("Invalid choice.")
+                continue
 
-        # Win check
-        if next_actor_name.lower() == target_name.lower():
-            render_board(path, target_name)
-            print("\n🎉 Target reached!")
+            next_actor_id, next_actor_name = costars[int(a_choice) - 1]
+            turn_count += 1
+            path.append(next_actor_name)
 
-            if validate_path(path):
-                connections = (len(path) - 2) # // subtract 2 for the original actor and target actor
-                print(f"Valid path confirmed.")
-                print(f"Total connections: {connections}")
-                # print_victory_path(path)
-            else:
-                print("Path validation failed.")
+            if next_actor_name.lower() == target_name.lower():
+                render_board(path, target_name, turn_count, back_count)
+                print("\n🎉 Target reached!")
 
-            return
+                if validate_path(path):
+                    connections = len(path) - 2
+                    print("Valid path confirmed.")
+                    print(f"Total connections: {connections}")
+                    print(f"Total reshuffles used: {shuffle_count}")
+                else:
+                    print("Path validation failed.")
 
-        current_actor_id = next_actor_id
-        current_actor_name = next_actor_name
+                return
+
+            current_actor_id = next_actor_id
+            current_actor_name = next_actor_name
+            break
 
 
 # -----------------------------
