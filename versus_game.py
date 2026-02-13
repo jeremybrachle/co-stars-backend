@@ -1,10 +1,12 @@
 import sqlite3
+import difflib
+import unicodedata
 
 DB_FILE = "movies.db"
 
 
 # -----------------------------
-# DB Helper
+# DB Helpers
 # -----------------------------
 def run_query(sql, params=()):
     conn = sqlite3.connect(DB_FILE)
@@ -14,6 +16,31 @@ def run_query(sql, params=()):
     conn.close()
     return rows
 
+def normalize_text(text):
+    return ''.join(
+        c for c in unicodedata.normalize('NFKD', text)
+        if not unicodedata.combining(c)
+    ).lower()
+
+
+def find_closest_match(user_input, valid_options, cutoff=0.6):
+    normalized_map = {
+        normalize_text(option): option for option in valid_options
+    }
+
+    normalized_input = normalize_text(user_input)
+
+    matches = difflib.get_close_matches(
+        normalized_input,
+        normalized_map.keys(),
+        n=1,
+        cutoff=cutoff
+    )
+
+    if matches:
+        return normalized_map[matches[0]]
+
+    return None
 
 # -----------------------------
 # Lookups
@@ -37,6 +64,13 @@ def get_movies_for_actor(actor_id):
         LIMIT 6
     """, (actor_id,))
 
+def get_all_movies_for_actor(actor_id):
+    return run_query("""
+        SELECT m.id, m.title
+        FROM movies m
+        JOIN movie_actors ma ON m.id = ma.movie_id
+        WHERE ma.actor_id = ?
+    """, (actor_id,))
 
 def get_costars_for_movie(movie_id, exclude_names):
     base_sql = """
@@ -66,6 +100,23 @@ def get_costars_for_movie(movie_id, exclude_names):
 
     # Step 3: return top 6
     return [(row[0], row[1]) for row in sorted_pool[:6]]
+
+def get_all_costars_for_movie(movie_id, exclude_names):
+    base_sql = """
+        SELECT a.id, a.name
+        FROM actors a
+        JOIN movie_actors ma ON a.id = ma.actor_id
+        WHERE ma.movie_id = ?
+    """
+
+    params = [movie_id]
+
+    if exclude_names:
+        placeholders = ",".join("?" * len(exclude_names))
+        base_sql += f" AND a.name NOT IN ({placeholders})"
+        params.extend(exclude_names)
+
+    return run_query(base_sql, tuple(params))
 
 
 # -----------------------------
@@ -193,6 +244,7 @@ def play_vs_game(actor1_name, actor2_name):
 
             print("7. 🔀 Shuffle")
             print("8. ⬅ Back")
+            print("9. ✏ Write-in")
 
             m_choice = input("Choose a movie: ").strip()
 
@@ -214,6 +266,31 @@ def play_vs_game(actor1_name, actor2_name):
                 else:
                     print("Cannot go back further.")
                 continue
+
+            if m_choice == "9":
+                user_text = input("Enter movie name: ").strip()
+
+                full_filmography = get_all_movies_for_actor(current_actor_id)
+
+                if not full_filmography:
+                    print("No movies found.")
+                    continue
+                
+                valid_titles = [title for _, title in full_filmography]
+
+                closest = find_closest_match(user_text, valid_titles)
+
+                if closest:
+                    print(f"\n🎯 Interpreting as: {closest}")
+                    movie_index = valid_titles.index(closest)
+                    movie_id, movie_title = full_filmography[movie_index]
+
+                    path.append(movie_title)
+                    turn_count += 1
+                    break
+                else:
+                    print("No close match found among current options.")
+                    continue
 
             if not m_choice.isdigit() or not (1 <= int(m_choice) <= 6):
                 print("Invalid choice.")
@@ -244,6 +321,7 @@ def play_vs_game(actor1_name, actor2_name):
 
             print("7. 🔀 Shuffle")
             print("8. ⬅ Back")
+            print("9. ✏ Write-in")
 
             a_choice = input("Choose a costar: ").strip()
 
@@ -258,6 +336,51 @@ def play_vs_game(actor1_name, actor2_name):
                 removed_movie = path.pop()
                 print(f"\n↩ Returning from '{removed_movie}'.")
                 break
+
+            if a_choice == "9":
+                user_text = input("Enter actor name: ").strip()
+                
+                # Query full cast:
+                full_cast = get_all_costars_for_movie(movie_id, path)
+
+                if not full_cast:
+                    print("No additional actors found.")
+                    continue
+
+                valid_names = [name for _, name in full_cast]
+                closest = find_closest_match(user_text, valid_names)
+
+                if closest:
+                    print(f"\n🎯 Interpreting as: {closest}")
+                    actor_index = valid_names.index(closest)
+                    next_actor_id, next_actor_name = full_cast[actor_index]
+                    
+                    path.append(next_actor_name)
+                    turn_count += 1
+
+                    # ✅ ADD THIS WIN CHECK
+                    if next_actor_name.lower() == target_name.lower():
+                        render_board(path, target_name, turn_count, back_count)
+                        print("\n🎉 Target reached!")
+
+                        if validate_path(path):
+                            connections = len(path) - 2
+                            print("Valid path confirmed.")
+                            print(f"Total connections: {connections}")
+                            print(f"Total reshuffles used: {shuffle_count}")
+                        else:
+                            print("Path validation failed.")
+
+                        return
+
+                    # Otherwise continue to next round
+                    current_actor_id = next_actor_id
+                    current_actor_name = next_actor_name
+                    
+                    break
+                else:
+                    print("No close match found in this movie.")
+                    continue
 
             if not a_choice.isdigit() or not (1 <= int(a_choice) <= 6):
                 print("Invalid choice.")
