@@ -1,0 +1,9 @@
+<!doctype html>
+<title>Actor vs Actor</title>
+<h1>Start Actor Game</h1>
+{% if error %}<p style="color:red">{{ error }}</p>{% endif %}
+<form method="POST">
+    Actor 1: <input name="actor1"><br>
+    Actor 2: <input name="actor2"><br>
+    <button type="submit">Start Game</button>
+</form>

@@ -1,0 +1,20 @@
+<!doctype html>
+<title>Choose Actor</title>
+<h2>Co-stars in {{ movie_title }}</h2>
+<ul>
+{% for id, name in costars %}
+  <li>
+    <form method="POST">
+      <button name="choice" value="{{ loop.index }}">{{ name }}</button>
+    </form>
+  </li>
+{% endfor %}
+</ul>
+<form method="POST">
+  <button name="choice" value="shuffle">🔀 Shuffle</button>
+  <button name="choice" value="back">⬅ Back</button>
+  Write-in: <input name="writein">
+  <button name="choice" value="writein">Go</button>
+</form>
+<p>Path: {{ path }}</p>
+<p>Turns: {{ turn_count }} | Rewinds: {{ back_count }} | Shuffles: {{ shuffle_count }}</p>
