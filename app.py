@@ -45,10 +45,18 @@ def choose_movie():
     path = session["path"]
     target_name = session["target_actor_name"]
 
+    # GET or first time: fetch and store the movie list in session
+    if "current_movies" not in session:
+        session["current_movies"] = get_movies_for_actor(current_actor_id)
+
+    movies = session["current_movies"]
+
     if request.method == "POST":
         choice = request.form["choice"]
         if choice == "shuffle":
             session["shuffle_count"] += 1
+            session["current_movies"] = get_movies_for_actor(current_actor_id)
+            return redirect(url_for("choose_movie"))
         elif choice == "back":
             if len(path) > 1:
                 path.pop()  # remove actor
@@ -56,6 +64,7 @@ def choose_movie():
                 session["back_count"] += 1
                 session["current_actor_name"] = path[-1]
                 session["current_actor_id"] = get_actor_by_name(path[-1])[0]
+                session.pop("current_movies", None)  # clear old costars
             return redirect(url_for("choose_movie"))
         elif choice == "writein":
             user_input = request.form["writein"].strip()
@@ -72,7 +81,7 @@ def choose_movie():
                 return redirect(url_for("choose_actor"))
         else:
             # Numeric selection
-            movies = get_movies_for_actor(current_actor_id)
+            # movies = get_movies_for_actor(current_actor_id)
             try:
                 movie_id, movie_title = movies[int(choice)-1]
                 path = rewind_if_loop(path, movie_title)
@@ -80,11 +89,13 @@ def choose_movie():
                 session["path"] = path
                 session["turn_count"] += 1
                 session["movie_id"] = movie_id
+                # ⚡ Clear previous actor list so new one is fetched for this movie
+                session.pop("current_movies", None)
                 return redirect(url_for("choose_actor"))
             except:
                 pass  # ignore invalid selection
 
-    movies = get_movies_for_actor(current_actor_id)
+    # movies = get_movies_for_actor(current_actor_id)
     return render_template("movie.html", movies=movies, actor_name=current_actor_name, path=path, turn_count=session["turn_count"], back_count=session["back_count"], shuffle_count=session["shuffle_count"])
 
 
@@ -97,50 +108,98 @@ def choose_actor():
     path = session["path"]
     target_name = session["target_actor_name"]
 
+    # Always regenerate costars if missing
+    costars = session.get("current_costars")
+    if not costars:
+        costars = get_costars_for_movie(movie_id, path)
+        session["current_costars"] = costars
+
     if request.method == "POST":
         choice = request.form["choice"]
+
+        # 🔀 SHUFFLE
         if choice == "shuffle":
             session["shuffle_count"] += 1
+            session["current_costars"] = get_costars_for_movie(movie_id, path)
+            return redirect(url_for("choose_actor"))
+
+        # ⬅ BACK
         elif choice == "back":
             path.pop()  # remove movie
             session["path"] = path
             session["back_count"] += 1
+            session.pop("current_costars", None)
             return redirect(url_for("choose_movie"))
+
+        # ✏ WRITE-IN
         elif choice == "writein":
             user_input = request.form["writein"].strip()
             full_cast = get_all_costars_for_movie(movie_id, path)
             valid_names = [name for _, name in full_cast]
             closest = find_closest_match(user_input, valid_names)
+
             if closest:
                 next_actor_id, next_actor_name = full_cast[valid_names.index(closest)]
+
                 path.append(next_actor_name)
                 session["path"] = path
                 session["turn_count"] += 1
+
+                # WIN CHECK
                 if next_actor_name.lower() == target_name.lower():
                     valid = validate_path(path)
+                    session.pop("current_costars", None)
                     return render_template("win.html", path=path, valid=valid)
+
+                # Update actor
                 session["current_actor_id"] = next_actor_id
                 session["current_actor_name"] = next_actor_name
+
+                # Clear derived lists
+                session.pop("current_costars", None)
+                session.pop("current_movies", None)
+
                 return redirect(url_for("choose_movie"))
+
+        # 🔢 NUMBERED SELECTION
         else:
-            # Numeric selection
-            costars = get_costars_for_movie(movie_id, path)
             try:
-                next_actor_id, next_actor_name = costars[int(choice)-1]
-                path.append(next_actor_name)
-                session["path"] = path
-                session["turn_count"] += 1
-                if next_actor_name.lower() == target_name.lower():
-                    valid = validate_path(path)
-                    return render_template("win.html", path=path, valid=valid)
-                session["current_actor_id"] = next_actor_id
-                session["current_actor_name"] = next_actor_name
-                return redirect(url_for("choose_movie"))
+                index = int(choice) - 1
+                if 0 <= index < len(costars):
+                    next_actor_id, next_actor_name = costars[index]
+
+                    path.append(next_actor_name)
+                    session["path"] = path
+                    session["turn_count"] += 1
+
+                    # WIN CHECK
+                    if next_actor_name.lower() == target_name.lower():
+                        valid = validate_path(path)
+                        session.pop("current_costars", None)
+                        return render_template("win.html", path=path, valid=valid)
+
+                    # Update actor
+                    session["current_actor_id"] = next_actor_id
+                    session["current_actor_name"] = next_actor_name
+
+                    # Clear derived lists
+                    session.pop("current_costars", None)
+                    session.pop("current_movies", None)
+
+                    return redirect(url_for("choose_movie"))
+
             except:
                 pass
 
-    costars = get_costars_for_movie(movie_id, path)
-    return render_template("actor.html", costars=costars, movie_title=path[-1], path=path, turn_count=session["turn_count"], back_count=session["back_count"], shuffle_count=session["shuffle_count"])
+    return render_template(
+        "actor.html",
+        costars=session["current_costars"],
+        movie_title=path[-1],
+        path=path,
+        turn_count=session["turn_count"],
+        back_count=session["back_count"],
+        shuffle_count=session["shuffle_count"]
+    )
 
 
 if __name__ == "__main__":
