@@ -1,20 +1,63 @@
 <!doctype html>
 <title>Choose Actor</title>
-<h2>Co-stars in {{ movie_title }}</h2>
-<ul>
-{% for id, name in costars %}
-  <li>
-    <form method="POST">
-      <button name="choice" value="{{ loop.index }}">{{ name }}</button>
-    </form>
-  </li>
-{% endfor %}
-</ul>
-<form method="POST">
-  <button name="choice" value="shuffle">🔀 Shuffle</button>
-  <button name="choice" value="back">⬅ Back</button>
-  Write-in: <input name="writein">
-  <button name="choice" value="writein">Go</button>
-</form>
-<p>Path: {{ path }}</p>
-<p>Turns: {{ turn_count }} | Rewinds: {{ back_count }} | Shuffles: {{ shuffle_count }}</p>
+<style>
+  body { text-align: center; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; padding: 0 0.5em; }
+  .left-block { display: flex; flex-direction: column; align-items: flex-start; }
+  header h1 { margin: 0; font-size: 2em; }
+  header h1:last-child { margin-right: 3em; }
+  .path { margin-top: 0.5em; margin-left: 2em; margin-bottom: 0.5em; }
+  .path .step { display: flex; flex-direction: column; align-items: center; }
+  .path .step > div:first-child { border: 1px solid #999; padding: 0.4em 0.8em; margin: 0.2em 0; background-color: #f5f5f5; border-radius: 4px; }
+  .path .step.current-step > div:first-child { font-weight: bold; background-color: #e8f5e9; }
+  .path .step:nth-of-type(2) { margin-left: 0; }
+  .path .step:nth-of-type(3) { margin-left: 1.5em; }
+  .path .step:nth-of-type(4) { margin-left: 3em; }
+  .path .step:nth-of-type(5) { margin-left: 4.5em; }
+  .path .step:nth-of-type(6) { margin-left: 6em; }
+  .path .step:nth-of-type(n+7) { margin-left: 7em; }
+  .path .arrow { margin: 0.2em 0; }
+  ul { margin: 1em auto; width: fit-content; text-align: left; }
+  .content { border: 1px solid #ccc; padding: 1em 2em; display: inline-block; margin: 2em auto; text-align: center; }
+</style>
+<header>
+  <div class="left-block">
+    <h1>{{ path[0] }}</h1>
+    <div class="path">
+      {% for step in path %}
+        {% if loop.index0 == 0 %}
+          <div class="step"><span class="arrow">&#x2193;</span></div>
+        {% else %}
+          <div class="step{% if loop.last %} current-step{% endif %}">
+            <div>{{ step }}</div>
+            {% if not loop.last %}<div class="arrow">&#x2193;</div>{% endif %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  <h1>{{ target_actor }}</h1>
+</header>
+<div class="content">
+  <h2>Co-stars in {{ movie_title }}</h2>
+  <ul>
+  {% for id, name in costars %}
+    <li>
+      <form method="POST">
+        <button name="choice" value="{{ loop.index }}">{{ name }}</button>
+      </form>
+    </li>
+  {% endfor %}
+    <li>
+      <form method="POST">
+        <input name="writein" placeholder="Write-in">
+        <button name="choice" value="writein">Go</button>
+      </form>
+    </li>
+  </ul>
+  <form method="POST">
+    <button name="choice" value="shuffle">🔀 Shuffle</button>
+    <button name="choice" value="back">⬅ Back</button>
+  </form>
+  <p>Turns: {{ turn_count }} | Rewinds: {{ back_count }} | Shuffles: {{ shuffle_count }}</p>
+</div>

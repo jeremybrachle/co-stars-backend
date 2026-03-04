@@ -96,7 +96,7 @@ def choose_movie():
                 pass  # ignore invalid selection
 
     # movies = get_movies_for_actor(current_actor_id)
-    return render_template("movie.html", movies=movies, actor_name=current_actor_name, path=path, turn_count=session["turn_count"], back_count=session["back_count"], shuffle_count=session["shuffle_count"])
+    return render_template("movie.html", movies=movies, actor_name=current_actor_name, path=path, turn_count=session["turn_count"], back_count=session["back_count"], shuffle_count=session["shuffle_count"], target_actor=target_name)
 
 
 # -----------------------------
@@ -176,7 +176,8 @@ def choose_actor():
                     if next_actor_name.lower() == target_name.lower():
                         valid = validate_path(path)
                         session.pop("current_costars", None)
-                        return render_template("win.html", path=path, valid=valid)
+                        # return render_template("win.html", path=path, valid=valid, target_actor=target_name, target_actor=target_name)
+                        return render_template("win.html", path=path, valid=valid, target_actor=target_name)
 
                     # Update actor
                     session["current_actor_id"] = next_actor_id
@@ -198,7 +199,8 @@ def choose_actor():
         path=path,
         turn_count=session["turn_count"],
         back_count=session["back_count"],
-        shuffle_count=session["shuffle_count"]
+        shuffle_count=session["shuffle_count"],
+        target_actor=target_name
     )
 
 
