@@ -126,7 +126,7 @@ def choose_movie():
             except:
                 pass
 
-    return render_template("movie_vertical.html", movies=movies, actor_name=current_actor_name, path_a=path_a, path_b=path_b, turn_count=session["turn_count"], back_count=session["back_count"], shuffle_count=session["shuffle_count"], target_actor=target_name, active_actor=active_actor)
+    return render_template("movie.html", movies=movies, actor_name=current_actor_name, path_a=path_a, path_b=path_b, turn_count=session["turn_count"], back_count=session["back_count"], shuffle_count=session["shuffle_count"], target_actor=target_name, active_actor=active_actor)
 
 
 # -----------------------------
@@ -197,13 +197,13 @@ def choose_actor():
                     if next_actor_name.lower() == target_name.lower():
                         valid = validate_path(current_path)
                         session.pop("current_costars", None)
-                        return render_template("win_vertical.html", path=current_path, valid=valid, target_actor=target_name)
+                        return render_template("win.html", path=current_path, valid=valid, target_actor=target_name)
                 else:
                     session["path_from_b"] = current_path
                     if next_actor_name.lower() == session["path_from_a"][0].lower():
                         valid = validate_path(current_path)
                         session.pop("current_costars", None)
-                        return render_template("win_vertical.html", path=current_path, valid=valid, target_actor=target_name)
+                        return render_template("win.html", path=current_path, valid=valid, target_actor=target_name)
 
                 session["current_actor_id"] = next_actor_id
                 session["current_actor_name"] = next_actor_name
@@ -227,13 +227,13 @@ def choose_actor():
                         if next_actor_name.lower() == target_name.lower():
                             valid = validate_path(current_path)
                             session.pop("current_costars", None)
-                            return render_template("win_vertical.html", path=current_path, valid=valid, target_actor=target_name)
+                            return render_template("win.html", path=current_path, valid=valid, target_actor=target_name)
                     else:
                         session["path_from_b"] = current_path
                         if next_actor_name.lower() == session["path_from_a"][0].lower():
                             valid = validate_path(current_path)
                             session.pop("current_costars", None)
-                            return render_template("win_vertical.html", path=current_path, valid=valid, target_actor=target_name)
+                            return render_template("win.html", path=current_path, valid=valid, target_actor=target_name)
 
                     session["current_actor_id"] = next_actor_id
                     session["current_actor_name"] = next_actor_name
@@ -246,7 +246,7 @@ def choose_actor():
 
     current_path = path_a if active_actor == "a" else path_b
     return render_template(
-        "actor_vertical.html",
+        "actor.html",
         costars=session["current_costars"],
         movie_title=current_path[-1],
         path_a=path_a,

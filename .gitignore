@@ -5,3 +5,5 @@ __pycache__/
 .DS_Store
 *.db
 query_scratch.py
+templates/archive/*
+templates/misc/*
