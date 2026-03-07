@@ -1,3 +1,4 @@
+import json
 from flask import Flask, render_template, request, redirect, url_for, session
 from versus_game import (
     get_actor_by_name, get_movies_for_actor, get_costars_for_movie,
@@ -11,6 +12,9 @@ app.secret_key = "supersecretkey"  # Needed for sessions
 # -----------------------------
 # Start Page
 # -----------------------------
+with open("levels.json", "r") as f:
+    LEVELS = json.load(f)
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
@@ -21,7 +25,7 @@ def index():
         a2 = get_actor_by_name(actor2)
 
         if not a1 or not a2:
-            return render_template("index.html", error="Actor(s) not found")
+            return render_template("index.html", error="Actor(s) not found", levels=LEVELS)
 
         session["current_actor_id"], session["current_actor_name"] = a1
         session["target_actor_name"] = a2[1]
@@ -34,7 +38,7 @@ def index():
 
         return redirect(url_for("choose_movie"))
 
-    return render_template("index.html")
+    return render_template("index.html", levels=LEVELS)
 
 
 # -----------------------------
@@ -253,6 +257,33 @@ def choose_actor():
         target_actor=target_name,
         active_actor=active_actor
     )
+
+
+@app.route("/play", methods=["GET", "POST"])
+def play_game():
+    actor_a = request.args.get("actorA") or request.form.get("actorA")
+    actor_b = request.args.get("actorB") or request.form.get("actorB")
+    if not actor_a or not actor_b:
+        return "Missing actor names", 400
+
+    a1 = get_actor_by_name(actor_a)
+    a2 = get_actor_by_name(actor_b)
+    if not a1 or not a2:
+        return f"Actor(s) not found: {actor_a}, {actor_b}", 404
+
+    session["current_actor_id"], session["current_actor_name"] = a1
+    session["target_actor_name"] = a2[1]
+    session["path_from_a"] = [a1[1]]
+    session["path_from_b"] = [a2[1]]
+    session["active_actor"] = "a"
+    session["turn_count"] = 0
+    session["back_count"] = 0
+    session["shuffle_count"] = 0
+    session.pop("current_movies", None)
+    session.pop("current_costars", None)
+
+    # Test logic: redirect to movie selection
+    return redirect(url_for("choose_movie"))
 
 
 if __name__ == "__main__":

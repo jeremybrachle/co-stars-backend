@@ -15,15 +15,6 @@
     font-family: 'Arial', sans-serif;
     color: white;
   }
-  .container {
-    text-align: center;
-    max-width: 600px;
-    padding: 2em;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 15px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(10px);
-  }
   h1 {
     font-size: 3em;
     margin-bottom: 0.5em;
@@ -81,26 +72,236 @@
     margin-bottom: 1em;
     font-weight: bold;
   }
+  .levels-grid {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5em;
+    margin-top: 2em;
+    margin-bottom: 0.5em;
+  }
+  .levels-row {
+    display: flex;
+    justify-content: center;
+    gap: 1.5em;
+  }
+  .level-card {
+    width: 180px;
+    height: 260px;
+    min-width: 180px;
+    min-height: 260px;
+    max-width: 180px;
+    max-height: 260px;
+    box-sizing: border-box;
+    border-radius: 22px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.18), 0 1.5px 6px rgba(255,255,255,0.10) inset;
+    padding: 1.3em 0.8em 1.1em 0.8em;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #f8f8f8;
+    border: 2.5px solid rgba(180,180,180,0.18);
+    cursor: pointer;
+    transition: background 0.22s, box-shadow 0.22s, transform 0.18s, border 0.18s;
+    position: relative;
+    text-align: center;
+    justify-content: center;
+    overflow: hidden;
+    background: linear-gradient(135deg, #3a2c4a 0%, #23243a 100%);
+  }
+  /* Unique dark gradients for each card */
+  .levels-row .level-card:nth-child(1) {
+    background: linear-gradient(135deg, #3a2c4a 0%, #23243a 100%);
+  }
+  .levels-row .level-card:nth-child(2) {
+    background: linear-gradient(135deg, #2d375a 0%, #1a2238 100%);
+  }
+  .levels-row .level-card:nth-child(3) {
+    background: linear-gradient(135deg, #4b2c5e 0%, #2d1a3a 100%);
+  }
+  .levels-row .level-card:nth-child(4) {
+    background: linear-gradient(135deg, #3a3a5a 0%, #23234a 100%);
+  }
+  .levels-row + .levels-row .level-card:nth-child(1) {
+    background: linear-gradient(135deg, #2c3a4a 0%, #1a232a 100%);
+  }
+  .levels-row + .levels-row .level-card:nth-child(2) {
+    background: linear-gradient(135deg, #4a2c3a 0%, #2a1a23 100%);
+  }
+  .levels-row + .levels-row .level-card:nth-child(3) {
+    background: linear-gradient(135deg, #2c4a3a 0%, #1a2a23 100%);
+  }
+  .levels-row + .levels-row .level-card:nth-child(4) {
+    background: linear-gradient(135deg, #3a2c2c 0%, #23201a 100%);
+  }
+  .level-card:hover {
+    filter: brightness(1.13) saturate(1.08);
+    box-shadow: 0 10px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(255,255,255,0.10) inset;
+    border: 2.5px solid #FFD700;
+    transform: translateY(-4px) scale(1.045);
+  }
+  .level-stars {
+    font-size: 1.15em;
+    letter-spacing: 0.09em;
+    margin-bottom: 0.4em;
+    margin-top: 0;
+    align-self: center;
+    filter: drop-shadow(0 1px 2px #e6c200);
+  }
+  .star {
+    color: #FFD700;
+    font-size: 1.1em;
+    text-shadow: 0 1px 4px #f5f5f5, 0 0 2px #fff8dc;
+  }
+  .star.empty {
+    color: #d6d6d6;
+    text-shadow: none;
+  }
+  .level-title {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-bottom: 0.3em;
+  }
+  .level-actors {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5em;
+    width: 100%;
+    font-size: 0.93em;
+    line-height: 1.18em;
+  }
+  .actor-line {
+    font-size: 0.93em;
+    margin: 0.08em 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .actor-bold {
+    font-weight: bold;
+    color: #fff;
+    letter-spacing: 0.01em;
+    text-shadow: 0 1px 6px rgba(60,60,60,0.18), 0 0px 2px #222;
+  }
+  .vs-text {
+    color: #FFD700;
+    font-weight: 600;
+    font-size: 0.95em;
+    margin: 0.08em 0;
+  }
+  .level-number-box {
+    margin-top: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .level-number-box span {
+    display: inline-block;
+    padding: 0.55em 1.3em;
+    border-radius: 13px;
+    background: rgba(255,255,255,0.7);
+    color: #7c6f3a;
+    font-weight: bold;
+    font-size: 1.08em;
+    border: 2.5px solid #FFD700;
+    box-shadow: 0 1px 4px #e0e0e0;
+    letter-spacing: 0.01em;
+  }
+  .custom-form-collapsed {
+    display: none;
+  }
+  .custom-form-expanded {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 0.5em;
+    width: 320px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    padding: 1em 0.5em;
+    margin: 0 auto;
+  }
+  .custom-form-rect {
+    background: rgba(255,255,255,0.15);
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    padding: 2em 2em 1em 2em;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 320px;
+    margin: 1em auto 0 auto;
+  }
+  .custom-form-rect input {
+    margin: 0.5em 0;
+    padding: 0.7em;
+    border-radius: 8px;
+    border: none;
+    width: 90%;
+    font-size: 1em;
+  }
+  .custom-form-rect button {
+    margin-top: 0.8em;
+    padding: 0.7em 1.5em;
+    border-radius: 8px;
+    border: none;
+    background: #ff6b6b;
+    color: #fff;
+    font-size: 1.1em;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🎭 Actor vs Actor</h1>
-    <p class="subtitle">Find the shortest path of co-stars between two actors!</p>
-    {% if error %}<p class="error">{{ error }}</p>{% endif %}
-    <form method="POST">
-      <div class="actor-inputs">
-        <div>
-          <label for="actor1">Actor 1</label>
-          <input id="actor1" name="actor1" placeholder="e.g. Leonardo DiCaprio">
+  <h1>🎭 Actor vs Actor</h1>
+  <p class="subtitle">Choose a level or create your own path!</p>
+  <div class="levels-grid">
+    <div class="levels-row">
+      {% for i in range(0, 4) %}
+      <button class="level-card modern-card clickable" type="button" onclick="selectLevel('{{ levels[i].actor_a }}', '{{ levels[i].actor_b }}')">
+        <div class="level-stars gold-stars">{% for s in range(1,6) %}{% if s <= levels[i].stars %}<span class="star">★</span>{% else %}<span class="star empty">☆</span>{% endif %}{% endfor %}</div>
+        <div class="level-actors modern-card-text">
+          <div class="actor-line actor-bold">{{ levels[i].actor_a }}</div>
+          <div class="actor-line vs-text">vs.</div>
+          <div class="actor-line actor-bold">{{ levels[i].actor_b }}</div>
         </div>
-        <div>
-          <label for="actor2">Actor 2</label>
-          <input id="actor2" name="actor2" placeholder="e.g. Tom Hanks">
+        <div class="level-number-box modern-number"><span>Level {{ i+1 }}</span></div>
+      </button>
+      {% endfor %}
+    </div>
+    <div class="levels-row">
+      {% for i in range(4, 8) %}
+      <button class="level-card modern-card clickable" type="button" onclick="selectLevel('{{ levels[i].actor_a }}', '{{ levels[i].actor_b }}')">
+        <div class="level-stars gold-stars">{% for s in range(1,6) %}{% if s <= levels[i].stars %}<span class="star">★</span>{% else %}<span class="star empty">☆</span>{% endif %}{% endfor %}</div>
+        <div class="level-actors modern-card-text">
+          <div class="actor-line actor-bold">{{ levels[i].actor_a }}</div>
+          <div class="actor-line vs-text">vs.</div>
+          <div class="actor-line actor-bold">{{ levels[i].actor_b }}</div>
         </div>
-      </div>
-      <button type="submit">🚀 Start Game</button>
-    </form>
+        <div class="level-number-box modern-number"><span>Level {{ i+1 }}</span></div>
+      </button>
+      {% endfor %}
+    </div>
   </div>
+  <div class="custom-level-container bordered-custom">
+    <label for="custom-actorA" class="custom-label">Create a Custom Level:</label>
+    <input id="custom-actorA" type="text" placeholder="Actor A">
+    <input id="custom-actorB" type="text" placeholder="Actor B">
+    <button type="button" onclick="submitCustomLevel()">Create</button>
+  </div>
+  <script>
+    function selectLevel(actorA, actorB) {
+      window.location.href = '/play?actorA=' + encodeURIComponent(actorA) + '&actorB=' + encodeURIComponent(actorB);
+    }
+    function submitCustomLevel() {
+      const actorA = document.getElementById('actorAInput').value;
+      const actorB = document.getElementById('actorBInput').value;
+      if (!actorA || !actorB) return;
+      window.location.href = '/play?actorA=' + encodeURIComponent(actorA) + '&actorB=' + encodeURIComponent(actorB);
+    }
+  </script>
 </body>
 </html>

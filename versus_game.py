@@ -410,6 +410,18 @@ def play_vs_game(actor1_name, actor2_name):
 
 
 # -----------------------------
+# Level Definitions
+# -----------------------------
+# Define your 8 explicit levels here as a list of tuples or dicts.
+# Example:
+# LEVELS = [
+#     {"actor_a": "Matt Damon", "actor_b": "Daniel Craig"},
+#     {"actor_a": "George Clooney", "actor_b": "Tobey Maguire"},
+#     # ...add 6 more...
+# ]
+# You can use these entries to display levels in the UI and pass them to play_vs_game.
+
+# -----------------------------
 # Entry
 # -----------------------------
 if __name__ == "__main__":
