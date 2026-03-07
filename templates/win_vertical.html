@@ -1,0 +1,105 @@
+<!doctype html>
+<html>
+<head>
+<title>Victory!</title>
+<style>
+  body {
+    display: flex;
+    height: 100vh;
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+  .left-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 2em;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 15px 0 0 15px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    margin: 1em;
+    margin-right: 0.5em;
+  }
+  .actor-a { font-size: 2em; font-weight: bold; }
+  .actor-b { font-size: 2em; font-weight: bold; padding-top: 2em; }
+  .path {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 1em 0;
+  }
+  .path-item {
+    margin: 0.5em 0;
+    padding: 0.5em;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    text-align: center;
+    color: white;
+  }
+  .path-item.first { font-weight: bold; background-color: rgba(232, 245, 233, 0.3); }
+  .path-item.last { font-weight: bold; background-color: rgba(232, 245, 233, 0.3); }
+  .right-panel {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 2em;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 0 15px 15px 0;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    margin: 1em;
+    margin-left: 0.5em;
+  }
+  h1 {
+    font-size: 3em;
+    margin-bottom: 0.5em;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  }
+  p { font-size: 1.2em; margin: 1em 0; }
+  a {
+    display: inline-block;
+    padding: 1em 2em;
+    background: #ff6b6b;
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: bold;
+    transition: background 0.3s;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+  a:hover { background: #ff5252; }
+</style>
+</head>
+<body>
+<div class="left-panel">
+  <div class="actor-a">{{ path[0] }}</div>
+  <div class="path">
+    {% for step in path %}
+      {% if loop.index0 == 0 %}
+        <div class="path-item first">{{ step }}</div>
+      {% elif loop.last %}
+        <div class="path-item last">{{ step }}</div>
+      {% else %}
+        <div class="path-item">{{ step }}</div>
+      {% endif %}
+    {% endfor %}
+  </div>
+  <div class="actor-b">{{ target_actor }}</div>
+</div>
+<div class="right-panel">
+  <h1>🎉 Target Reached!</h1>
+  <p>Valid path: {{ valid }}</p>
+  <a href="{{ url_for('index') }}">Play Again</a>
+</div>
+</body>
+</html>

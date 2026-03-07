@@ -1,9 +1,106 @@
 <!doctype html>
-<title>Actor vs Actor</title>
-<h1>Start Actor Game</h1>
-{% if error %}<p style="color:red">{{ error }}</p>{% endif %}
-<form method="POST">
-    Actor 1: <input name="actor1"><br>
-    Actor 2: <input name="actor2"><br>
-    <button type="submit">Start Game</button>
-</form>
+<html>
+<head>
+<title>Actor vs Actor - Co-Stars Game</title>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    font-family: 'Arial', sans-serif;
+    color: white;
+  }
+  .container {
+    text-align: center;
+    max-width: 600px;
+    padding: 2em;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+  }
+  h1 {
+    font-size: 3em;
+    margin-bottom: 0.5em;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  }
+  .subtitle {
+    font-size: 1.2em;
+    margin-bottom: 2em;
+    opacity: 0.9;
+  }
+  .actor-inputs {
+    display: flex;
+    justify-content: center;
+    gap: 1em;
+    margin-bottom: 2em;
+  }
+  .actor-inputs div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .actor-inputs label {
+    margin-bottom: 0.5em;
+    font-weight: bold;
+  }
+  input {
+    padding: 0.8em;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    width: 200px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+  input:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5);
+  }
+  button {
+    padding: 1em 2em;
+    background: #ff6b6b;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.2em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+  button:hover {
+    background: #ff5252;
+  }
+  .error {
+    color: #ffeb3b;
+    margin-bottom: 1em;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎭 Actor vs Actor</h1>
+    <p class="subtitle">Find the shortest path of co-stars between two actors!</p>
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    <form method="POST">
+      <div class="actor-inputs">
+        <div>
+          <label for="actor1">Actor 1</label>
+          <input id="actor1" name="actor1" placeholder="e.g. Leonardo DiCaprio">
+        </div>
+        <div>
+          <label for="actor2">Actor 2</label>
+          <input id="actor2" name="actor2" placeholder="e.g. Tom Hanks">
+        </div>
+      </div>
+      <button type="submit">🚀 Start Game</button>
+    </form>
+  </div>
+</body>
+</html>

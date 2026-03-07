@@ -1,0 +1,233 @@
+<!doctype html>
+<html>
+<head>
+<title>Choose Movie</title>
+<style>
+  body {
+    display: flex;
+    height: 100vh;
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+  .left-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 1.5em;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 15px 0 0 15px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    margin: 1em;
+    margin-right: 0.5em;
+  }
+  .actor-section:last-child { margin-top: auto; padding-top: 3em; }
+  .actor-section { display: flex; flex-direction: column; align-items: center; }
+  .actor-name {
+    font-size: 1.8em;
+    font-weight: bold;
+    padding: 0.5em 1em;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 0.5em;
+    transition: all 0.2s;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+  }
+  .actor-name.active { background-color: #2196F3; color: white; }
+  .actor-name.inactive { background-color: rgba(255, 255, 255, 0.2); color: rgba(255, 255, 255, 0.7); cursor: not-allowed; }
+  .path { display: flex; flex-direction: column; align-items: center; padding: 0.5em; }
+  .path-item {
+    margin: 0.25em 0;
+    padding: 0.35em 0.7em;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    text-align: center;
+    font-size: 0.95em;
+    color: white;
+  }
+  .path-item.current { font-weight: bold; background-color: rgba(232, 245, 233, 0.3); }
+  .path.long { font-size: 0.75em; }
+  .right-panel {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 2em;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 0 15px 15px 0;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    margin: 1em;
+    margin-left: 0.5em;
+  }
+  .content {
+    padding: 1em 2em;
+    text-align: center;
+    position: relative;
+  }
+  .content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1em;
+  }
+  .shuffle-btn {
+    padding: 0.2em 0.5em;
+    font-size: 0.8em;
+    background: none;
+    border: none;
+    color: #ff6b6b;
+    cursor: pointer;
+    text-decoration: none;
+    font-weight: bold;
+    transition: color 0.3s;
+  }
+  .shuffle-btn:hover { color: #ff5252; }
+  ul { list-style: none; padding: 0; }
+  ul li { margin: 0.1em 0; }
+  ul li button { width: 100%; font-size: 0.9em; padding: 0.5em; }
+  .button-row { display: flex; gap: 0.5em; justify-content: center; margin: 0.5em 0; }
+  .button-row button {
+    padding: 0.5em 1em;
+    font-size: 0.9em;
+    min-width: 100px;
+  }
+  .writein-row { display: flex; gap: 0.5em; }
+  .writein-row input {
+    flex: 1;
+    padding: 0.4em;
+    border: none;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+  }
+  .writein-row input::placeholder { color: rgba(255, 255, 255, 0.7); }
+  .writein-row input:focus { outline: none; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5); }
+  .writein-row button { padding: 0.4em 0.8em; font-size: 0.9em; }
+  .stats { font-size: 0.9em; margin-top: 0.5em; }
+  h2 { margin-top: 0; }
+  .shuffle-title {
+    font-size: 1.2em;
+    font-weight: bold;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: white;
+    padding: 0.4em 0.8em;
+    border: 2px solid rgba(255,255,255,0.5);
+    border-radius: 8px;
+  }
+  .shuffle-title:hover { text-decoration: underline; }
+  .underline { text-decoration: underline; }
+  .plus-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 1.2em;
+    padding: 0;
+    margin: 0;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background-color: rgba(255, 255, 255, 0.2);
+    color: white;
+    cursor: pointer;
+    border-radius: 6px;
+  }
+  .plus-btn:hover { background-color: rgba(255, 255, 255, 0.3); }
+  .hidden { display: none; }
+  button {
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background-color: #ff6b6b;
+    color: white;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 0.3s;
+  }
+  button:hover { background-color: #ff5252; }
+</style>
+</head>
+<body>
+<div class="left-panel">
+  <div class="actor-section">
+    <form method="POST" style="margin: 0;">
+      <button type="submit" name="choice" value="switch_a" class="actor-name {% if active_actor == 'a' %}active{% else %}inactive{% endif %}">{{ path_a[0] }}</button>
+    </form>
+    <div class="path{% if path_a|length > 5 %} long{% endif %}">
+      {% for step in path_a %}
+        {% if loop.index0 == 0 %}
+          {% if path_a|length == 1 %}
+            <div class="path-item">⋮</div>
+          {% else %}
+            <div class="path-item">↓</div>
+          {% endif %}
+        {% else %}
+          <div class="path-item{% if loop.last %} current{% endif %}">{{ step }}</div>
+          {% if not loop.last %}<div class="path-item">↓</div>{% endif %}
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  <div class="actor-section">
+    <div class="path{% if path_b|length > 5 %} long{% endif %}">
+      {% for step in path_b %}
+        {% if loop.index0 == 0 %}
+          {% if path_b|length == 1 %}
+            <div class="path-item">⋮</div>
+          {% else %}
+            <div class="path-item">↑</div>
+          {% endif %}
+        {% else %}
+          <div class="path-item{% if loop.last %} current{% endif %}">{{ step }}</div>
+          {% if not loop.last %}<div class="path-item">↑</div>{% endif %}
+        {% endif %}
+      {% endfor %}
+    </div>
+    <form method="POST" style="margin: 0;">
+      <button type="submit" name="choice" value="switch_b" class="actor-name {% if active_actor == 'b' %}active{% else %}inactive{% endif %}">{{ path_b[0] }}</button>
+    </form>
+  </div>
+</div>
+<div class="right-panel">
+  <div class="content">
+    <!-- upper shuffle removed, title wraps in border -->
+    <form method="POST" style="margin-bottom: 1em; text-align: center;">
+      <button type="submit" name="choice" value="shuffle" class="shuffle-title bordered-title">Movies for <span class="underline">{{ actor_name }}</span></button>
+    </form>
+    <ul>
+    {% for id, title in movies %}
+      <li>
+        <form method="POST">
+          <button name="choice" value="{{ loop.index }}" style="width: 100%;">{{ title }}</button>
+        </form>
+      </li>
+    {% endfor %}
+      <li class="writein-container">
+        <button type="button" class="plus-btn" id="plus-btn" onclick="toggleWritein()">+</button>
+        <form method="POST" class="writein-row hidden" id="writein-form">
+          <input name="writein" placeholder="Write-in">
+          <button name="choice" value="writein">Go</button>
+        </form>
+      </li>
+    </ul>
+    <form method="POST" class="button-row">
+      <button name="choice" value="shuffle">Shuffle</button>
+      <button name="choice" value="back">Back</button>
+    </form>
+    <p class="stats">Turns: {{ turn_count }} | Rewinds: {{ back_count }} | Shuffles: {{ shuffle_count }}</p>
+  </div>
+</div>
+<script>
+function toggleWritein() {
+  const form = document.getElementById('writein-form');
+  const btn = document.getElementById('plus-btn');
+  form.classList.toggle('hidden');
+  btn.textContent = form.classList.contains('hidden') ? '+' : '-';
+}
+</script>
+</body>
+</html>
