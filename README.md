@@ -93,6 +93,7 @@ python versus_game.py
    
    Get your API key from [The Movie Database (TMDB)](https://www.themoviedb.org/settings/api)
 
+
 ## Usage
 
 ### Populate the Database
@@ -108,6 +109,16 @@ This will:
 2. Ingest a predefined list of movies
 3. Fetch actors for each movie from TMDB
 4. Store all data in the local database
+
+### Run the FastAPI Backend
+
+Start the API server (from the project root):
+
+```bash
+uvicorn fastapi_app.main:app --reload
+```
+
+Then open your browser to http://localhost:8000/docs to explore and test all endpoints visually.
 
 ### Ingest Individual Movies
 
@@ -134,4 +145,8 @@ path = generate_path(start_actor_id=123, end_actor_id=456)
 ## Configuration
 
 All database operations use `movies.db` as the default SQLite database file. This can be modified by changing the `DB_FILE` variable in `db.py` or `path_utils.py`.
+
+## Notes
+- The backend is now FastAPI-only. Flask and all template files have been removed.
+- All endpoints are documented and testable at `/docs` (Swagger UI).
 

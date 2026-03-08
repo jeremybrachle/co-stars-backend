@@ -1,3 +1,12 @@
+# -----------------------------
+# Movie Lookup by Title
+# -----------------------------
+def get_movie_by_title(title):
+    row = run_query(
+        "SELECT id, title FROM movies WHERE title = ? COLLATE NOCASE",
+        (title,)
+    )
+    return row[0] if row else None
 import sqlite3
 import difflib
 import unicodedata

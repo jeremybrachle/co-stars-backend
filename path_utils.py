@@ -8,49 +8,37 @@ def get_connection():
 # -----------------------------
 # Function 1: BFS to generate a path
 # -----------------------------
-def generate_path(start_actor_id, end_actor_id):
+def generate_path(start_id, start_type, end_id, end_type):
     """
-    Returns a list like [actor, movie, actor, movie, ..., actor]
-    that connects start_actor_id to end_actor_id.
-    Uses BFS for shortest path in terms of actor-movie links.
+    Returns a list of alternating actor/movie IDs connecting start to end, regardless of type.
+    start_type/end_type: "actor" or "movie"
     """
     from collections import deque
-
     conn = get_connection()
     cursor = conn.cursor()
-
-    visited_actors = set()
     queue = deque()
-    queue.append((start_actor_id, [start_actor_id]))  # (current_actor, path_so_far)
-
+    visited = set()
+    queue.append((start_id, start_type, [(start_id, start_type)]))
+    visited.add((start_id, start_type))
     while queue:
-        current_actor, path = queue.popleft()
-        visited_actors.add(current_actor)
-
-        # Find all movies for this actor
-        cursor.execute("SELECT movie_id FROM movie_actors WHERE actor_id = ?", (current_actor,))
-        movies = [row[0] for row in cursor.fetchall()]
-
-        for movie_id in movies:
-            # Find all co-actors in that movie
-            cursor.execute("""
-                SELECT actor_id FROM movie_actors
-                WHERE movie_id = ? AND actor_id != ?
-            """, (movie_id, current_actor))
-            co_actors = [row[0] for row in cursor.fetchall()]
-
-            for co_actor in co_actors:
-                if co_actor in visited_actors:
-                    continue
-                new_path = path + [movie_id, co_actor]
-                if co_actor == end_actor_id:
-                    conn.close()
-                    return new_path  # Found a path!
-                queue.append((co_actor, new_path))
-                visited_actors.add(co_actor)  # mark visited
-
+        curr_id, curr_type, path = queue.popleft()
+        if (curr_id, curr_type) == (end_id, end_type):
+            # Return only the IDs for pretty_print_path
+            return [x[0] for x in path]
+        if curr_type == "actor":
+            cursor.execute("SELECT movie_id FROM movie_actors WHERE actor_id = ?", (curr_id,))
+            for (movie_id,) in cursor.fetchall():
+                if (movie_id, "movie") not in visited:
+                    visited.add((movie_id, "movie"))
+                    queue.append((movie_id, "movie", path + [(movie_id, "movie")]))
+        elif curr_type == "movie":
+            cursor.execute("SELECT actor_id FROM movie_actors WHERE movie_id = ?", (curr_id,))
+            for (actor_id,) in cursor.fetchall():
+                if (actor_id, "actor") not in visited:
+                    visited.add((actor_id, "actor"))
+                    queue.append((actor_id, "actor", path + [(actor_id, "actor")]))
     conn.close()
-    return None  # No path found
+    return -1  # No path found
 
 # -----------------------------
 # Function 2: Verify a given path
@@ -86,24 +74,27 @@ def verify_path(path):
 # -----------------------------
 # Optional: Pretty-print a path
 # -----------------------------
-def pretty_print_path(path):
+def pretty_print_path(path, start_type="actor"):
     """
-    Converts a path of IDs into readable names from DB
+    Converts a path of IDs into readable names from DB.
+    start_type: 'actor' or 'movie' (type of first node)
     """
     conn = get_connection()
     cursor = conn.cursor()
 
     names = []
-    for idx, val in enumerate(path):
-        if idx % 2 == 0:  # actor
+    curr_type = start_type
+    for val in path:
+        if curr_type == "actor":
             cursor.execute("SELECT name FROM actors WHERE id = ?", (val,))
             row = cursor.fetchone()
             names.append(row[0] if row else f"Actor {val}")
-        else:  # movie
+            curr_type = "movie"
+        else:
             cursor.execute("SELECT title FROM movies WHERE id = ?", (val,))
             row = cursor.fetchone()
             names.append(row[0] if row else f"Movie {val}")
+            curr_type = "actor"
 
     conn.close()
-    # Format: Actor -> Movie -> Actor -> ...
     return " -> ".join(names)
