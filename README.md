@@ -1,56 +1,55 @@
-# Co-Stars Backend
 
-A backend system for exploring connections between actors through movies they've appeared in together. This project uses the TMDB (The Movie Database) API to build a searchable network of actors and films.
+# Co-Stars Backend (FastAPI)
+
+Co-Stars Backend is a FastAPI-only backend for exploring connections between actors and movies. All endpoints are documented and testable via the interactive Swagger UI at `/docs` or `/redoc`.
 
 ## Overview
 
-Co-Stars Backend enables you to:
-- Fetch movie and actor data from TMDB API
-- Store movie and actor information in a local SQLite database
-- Query relationships between actors through their filmography
-- Find the shortest path connecting any two actors (Six Degrees-style connections)
+- Query actor/movie data and relationships from a local SQLite database
+- Find the shortest path between any two actors, movies, or actor/movie pairs (type-agnostic pathfinding)
+- Validate connection paths
+- Populate your database using The Movie Database (TMDB) API
+- Strict API and pathfinding testing included
 
-## Features
+## How to Run
 
-- **TMDB Integration**: Seamlessly fetch data from The Movie Database API
-- **Movie Ingestion**: Add movies to the database by title or TMDB ID
-- **Actor Network**: Build and query a network of actors and their collaborations
-- **Path Finding**: Find shortest paths between any two actors using BFS algorithm
-- **Duplicate Prevention**: Automatically skip movies that are already in the database
+1. Install dependencies:
+   ```bash
+   pip install fastapi uvicorn requests python-dotenv
+   ```
+2. Ensure your SQLite database (`movies.db`) and `levels.json` are present in the project root.
+3. Start the server from the project root:
+   ```bash
+   uvicorn fastapi_app.main:app --reload
+   ```
+4. Open your browser and go to:
+   - Swagger UI: http://localhost:8000/docs
+   - ReDoc: http://localhost:8000/redoc
 
-## Versus Game Usage
+## API Endpoints
 
-Start an interactive game between two actors:
+- `GET /api/levels` — List all challenge levels (actor pairs)
+- `GET /api/actor/{name}` — Get actor details by name
+- `GET /api/actor/{actor_id}/movies` — List all movies for an actor
+- `GET /api/movie/{movie_id}/costars` — List all costars for a movie
+- `POST /api/path/validate` — Validate a path (sequence of actor/movie names)
+- `POST /api/path/generate` — Generate the shortest path between any two nodes (actor or movie, by name/title)
 
-```python
-python versus_game.py
-```
+See `/docs` for full interactive documentation and sample payloads.
 
-### How to Play
-
-1. Choose your starting actor (1 or 2)
-2. Select movies from that actor's filmography
-3. Choose a costar from the selected movie
-4. Continue until you reach the target actor
-5. Use the back option to undo moves and explore alternative paths
-
-**Features:**
-- Loop detection automatically rewinds to prevent circular paths
-- Backtracking support to explore different connections
-- Path validation confirms all connections exist in the database
-- Visual board display shows your current progression
 
 ## Project Structure
 
 ```
+├── fastapi_app/          # FastAPI app and endpoints
 ├── db.py                 # Database initialization and connection management
 ├── db_helper.py          # Database insertion and query helper functions
 ├── ingest.py             # Movie ingestion logic (by title or ID)
 ├── tmdb_api.py           # TMDB API wrapper functions
-├── populate_db.py        # Main script to populate the database with initial movies
-├── path_utils.py         # Actor path-finding algorithms
-├── query_scratch.py      # Query utilities and testing
-├── versus_game.py        # Interactive game mode to find connections between two actors with backtracking support
+├── populate_db.py        # Script to populate the database with movies/actors
+├── path_utils.py         # Pathfinding and pretty-printing logic
+├── api_smoke_test.py     # Strict API smoke test script
+├── test_path_utils.py    # Unit tests for pathfinding logic
 └── movies.db             # SQLite database (generated after initialization)
 ```
 
@@ -132,21 +131,57 @@ ingest_movie_by_title("Ocean's Eleven")
 ingest_movie_by_id(1422)
 ```
 
-### Find Actor Connections
+
+### Find Connections Programmatically
 
 ```python
-from path_utils import generate_path
+from path_utils import generate_path, pretty_print_path
 
-# Find shortest path between two actors
-path = generate_path(start_actor_id=123, end_actor_id=456)
-# Returns: [actor, movie, actor, movie, ..., actor]
+# Find shortest path between two actors (by ID)
+path = generate_path(actor_id_1, "actor", actor_id_2, "actor")
+print(pretty_print_path(path, start_type="actor"))
+
+# Find path between actor and movie, or movie and movie
+path = generate_path(actor_id, "actor", movie_id, "movie")
+print(pretty_print_path(path, start_type="actor"))
 ```
+
 
 ## Configuration
 
 All database operations use `movies.db` as the default SQLite database file. This can be modified by changing the `DB_FILE` variable in `db.py` or `path_utils.py`.
 
+
+## Testing
+
+### API Smoke Tests
+
+Run the strict API smoke test to validate all endpoints and pathfinding logic:
+
+```bash
+python3 api_smoke_test.py
+```
+
+This script:
+- Starts with a running FastAPI server (see above)
+- Sends requests to all endpoints, including `/api/path/generate` and `/api/path/validate`
+- Prints clear PASS/FAIL output, expected vs actual values, and diagnostics for debugging
+
+### Pathfinding Unit Tests
+
+Run the pathfinding unit tests to verify the core logic:
+
+```bash
+python3 test_path_utils.py
+```
+
+This script:
+- Tests all combinations (actor-actor, actor-movie, movie-movie, no-path)
+- Prints readable test headers, input names/IDs, raw path (IDs), and pretty path (names)
+- Ensures the backend pathfinding logic is robust and type-agnostic
+
 ## Notes
-- The backend is now FastAPI-only. Flask and all template files have been removed.
+- The backend is now FastAPI-only. All Flask and template files have been removed.
 - All endpoints are documented and testable at `/docs` (Swagger UI).
+- For database setup and ingestion, see the usage section above.
 
