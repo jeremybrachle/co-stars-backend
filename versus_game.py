@@ -62,6 +62,14 @@ def get_actor_by_name(name):
     return row[0] if row else None
 
 
+def get_actor_details_by_name(name):
+    row = run_query(
+        "SELECT id, name, popularity FROM actors WHERE name = ? COLLATE NOCASE",
+        (name,)
+    )
+    return row[0] if row else None
+
+
 def get_movies_for_actor(actor_id):
     # Always return 6 random movies
     return run_query("""
@@ -81,7 +89,16 @@ def get_all_movies_for_actor(actor_id):
         WHERE ma.actor_id = ?
     """, (actor_id,))
 
-def get_costars_for_movie(movie_id, exclude_names):
+
+def sort_actor_rows_by_popularity(actor_rows):
+    return sorted(
+        actor_rows,
+        key=lambda row: (row[2] is not None, row[2] or 0.0, row[1].lower()),
+        reverse=True,
+    )
+
+
+def get_all_costars_for_movie_with_popularity(movie_id, exclude_names):
     base_sql = """
         SELECT a.id, a.name, a.popularity
         FROM actors a
@@ -96,23 +113,12 @@ def get_costars_for_movie(movie_id, exclude_names):
         base_sql += f" AND a.name NOT IN ({placeholders})"
         params.extend(exclude_names)
 
-    # Step 1: get random pool
-    base_sql += """
-        ORDER BY RANDOM()
-        LIMIT 20
-    """
+    return run_query(base_sql, tuple(params))
 
-    random_pool = run_query(base_sql, tuple(params))
 
-    # Step 2: sort pool by popularity descending
-    sorted_pool = sorted(random_pool, key=lambda x: x[2], reverse=True)
-
-    # Step 3: return top 6
-    return [(row[0], row[1]) for row in sorted_pool[:6]]
-
-def get_all_costars_for_movie(movie_id, exclude_names):
+def get_ranked_costars_for_movie(movie_id, exclude_names, pool_size=20, limit=6):
     base_sql = """
-        SELECT a.id, a.name
+        SELECT a.id, a.name, a.popularity
         FROM actors a
         JOIN movie_actors ma ON a.id = ma.actor_id
         WHERE ma.movie_id = ?
@@ -125,7 +131,22 @@ def get_all_costars_for_movie(movie_id, exclude_names):
         base_sql += f" AND a.name NOT IN ({placeholders})"
         params.extend(exclude_names)
 
-    return run_query(base_sql, tuple(params))
+    base_sql += """
+        ORDER BY RANDOM()
+        LIMIT ?
+    """
+    params.append(pool_size)
+
+    random_pool = run_query(base_sql, tuple(params))
+    return sort_actor_rows_by_popularity(random_pool)[:limit]
+
+def get_costars_for_movie(movie_id, exclude_names):
+    ranked_costars = get_ranked_costars_for_movie(movie_id, exclude_names)
+    return [(row[0], row[1]) for row in ranked_costars]
+
+def get_all_costars_for_movie(movie_id, exclude_names):
+    all_costars = get_all_costars_for_movie_with_popularity(movie_id, exclude_names)
+    return [(row[0], row[1]) for row in all_costars]
 
 
 # -----------------------------

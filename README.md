@@ -15,6 +15,7 @@ Co-Stars Backend is a FastAPI-only backend for exploring connections between act
 
 1. Install dependencies:
    ```bash
+   source venv/bin/activate
    pip install fastapi uvicorn requests python-dotenv
    ```
 2. Ensure your SQLite database (`movies.db`) and `levels.json` are present in the project root.
@@ -26,16 +27,42 @@ Co-Stars Backend is a FastAPI-only backend for exploring connections between act
    - Swagger UI: http://localhost:8000/docs
    - ReDoc: http://localhost:8000/redoc
 
+### Copy/Paste Base URLs
+
+```text
+http://localhost:8000
+http://localhost:8000/docs
+http://localhost:8000/api/levels
+http://localhost:8000/api/actors
+http://localhost:8000/api/movies
+```
+
 ## API Endpoints
 
 - `GET /api/levels` — List all challenge levels (actor pairs)
-- `GET /api/actor/{name}` — Get actor details by name
-- `GET /api/actor/{actor_id}/movies` — List all movies for an actor
-- `GET /api/movie/{movie_id}/costars` — List all costars for a movie
+- `GET /api/actors` — List the full actor catalog with all actor attributes
+- `GET /api/movies` — List the full movie catalog with all movie attributes
+- `GET /api/actor/{name}` — Get actor details by name, including popularity
+- `GET /api/actor/{actor_id}/movies` — List all movies for an actor, with optional target-aware path hints
+- `GET /api/movie/{movie_id}/costars` — List all actors in a movie, with optional target-aware path hints
 - `POST /api/path/validate` — Validate a path (sequence of actor/movie names)
 - `POST /api/path/generate` — Generate the shortest path between any two nodes (actor or movie, by name/title)
 
 See `/docs` for full interactive documentation and sample payloads.
+
+For frontend integration details, including exact localhost URLs and how to build open-ended game flows in a React client, see `FRONTEND_VERSUS_INTEGRATION.md`.
+
+### Open-Ended Suggestion API
+
+The API is now intentionally open-ended:
+
+- Popularity is returned as raw data only.
+- Suggestion endpoints return full raw lists instead of forcing one ranking policy.
+- If the frontend provides `target_type` and `target_id`, suggestion endpoints attach `path_hint` metadata with shortest-path information.
+- If a returned suggestion is already the target, its `path_hint.steps_to_target` will be `0`, which lets either the backend or the frontend identify an immediate winning move.
+- The frontend can decide whether to sort by popularity, sort by shortest path, shuffle, filter, or blend multiple strategies.
+
+This makes it possible to support classic play, hint-assisted play, quick play, and memory modes from the same backend contract.
 
 
 ## Project Structure
@@ -165,6 +192,7 @@ python3 api_smoke_test.py
 This script:
 - Starts with a running FastAPI server (see above)
 - Sends requests to all endpoints, including `/api/path/generate` and `/api/path/validate`
+- Verifies full actor and movie catalogs, raw suggestion payloads, optional path hints, and structured path responses
 - Prints clear PASS/FAIL output, expected vs actual values, and diagnostics for debugging
 
 ### Pathfinding Unit Tests
@@ -179,6 +207,20 @@ This script:
 - Tests all combinations (actor-actor, actor-movie, movie-movie, no-path)
 - Prints readable test headers, input names/IDs, raw path (IDs), and pretty path (names)
 - Ensures the backend pathfinding logic is robust and type-agnostic
+
+### API Unit Tests
+
+Run the isolated API endpoint tests:
+
+```bash
+python3 test_api_endpoints.py
+```
+
+This script:
+- Verifies catalog endpoints and raw suggestion endpoints
+- Checks optional `path_hint` metadata on actor and movie suggestion responses
+- Verifies structured `POST /api/path/generate` output
+- Uses mocked dependencies so endpoint behavior can be validated without relying on live DB state
 
 ## Notes
 - The backend is now FastAPI-only. All Flask and template files have been removed.

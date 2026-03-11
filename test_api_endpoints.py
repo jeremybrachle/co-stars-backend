@@ -1,0 +1,287 @@
+import unittest
+from unittest.mock import patch
+
+from fastapi.testclient import TestClient
+
+from fastapi_app.main import app
+
+
+class TestApiEndpoints(unittest.TestCase):
+    def setUp(self):
+        self.client = TestClient(app)
+
+    @patch("fastapi_app.main.get_all_actors")
+    def test_get_all_actors_returns_full_actor_records(self, mock_get_all_actors):
+        mock_get_all_actors.return_value = [
+            (1, "George Clooney", 33.1),
+            (2, "Matt Damon", 51.25),
+        ]
+
+        response = self.client.get("/api/actors")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            [
+                {"id": 1, "name": "George Clooney", "popularity": 33.1},
+                {"id": 2, "name": "Matt Damon", "popularity": 51.25},
+            ],
+        )
+
+    @patch("fastapi_app.main.get_all_movies")
+    def test_get_all_movies_returns_full_movie_records(self, mock_get_all_movies):
+        mock_get_all_movies.return_value = [
+            (11, "Ocean's Eleven", "2001-12-07"),
+            (22, "The Departed", "2006-10-04"),
+        ]
+
+        response = self.client.get("/api/movies")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            [
+                {"id": 11, "title": "Ocean's Eleven", "release_date": "2001-12-07"},
+                {"id": 22, "title": "The Departed", "release_date": "2006-10-04"},
+            ],
+        )
+
+    @patch("fastapi_app.main.vg_get_actor_details_by_name")
+    def test_get_actor_by_name_includes_popularity(self, mock_get_actor_details):
+        mock_get_actor_details.return_value = (101, "Matt Damon", 51.25)
+
+        response = self.client.get("/api/actor/Matt Damon")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"id": 101, "name": "Matt Damon", "popularity": 51.25},
+        )
+
+    @patch("fastapi_app.main.actor_exists")
+    @patch("fastapi_app.main.db_get_movies_for_actor")
+    @patch("fastapi_app.main.build_path_hint")
+    def test_get_movies_for_actor_includes_optional_path_hints(
+        self,
+        mock_build_path_hint,
+        mock_get_movies_for_actor,
+        mock_actor_exists,
+    ):
+        mock_actor_exists.return_value = True
+        mock_get_movies_for_actor.return_value = [
+            (11, "Ocean's Eleven", "2001-12-07"),
+            (12, "The Perfect Storm", "2000-06-30"),
+        ]
+        mock_build_path_hint.side_effect = [
+            {
+                "reachable": True,
+                "steps_to_target": 1,
+                "path": [
+                    {"id": 11, "type": "movie", "label": "Ocean's Eleven"},
+                    {"id": 44, "type": "actor", "label": "Matt Damon"},
+                ],
+            },
+            {
+                "reachable": True,
+                "steps_to_target": 3,
+                "path": [
+                    {"id": 12, "type": "movie", "label": "The Perfect Storm"},
+                    {"id": 55, "type": "actor", "label": "Mark Wahlberg"},
+                    {"id": 21, "type": "movie", "label": "The Departed"},
+                    {"id": 44, "type": "actor", "label": "Matt Damon"},
+                ],
+            },
+        ]
+
+        response = self.client.get("/api/actor/9/movies?target_type=actor&target_id=44")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]["path_hint"]["steps_to_target"], 1)
+        self.assertEqual(response.json()[1]["path_hint"]["steps_to_target"], 3)
+        mock_build_path_hint.assert_any_call(11, "movie", 44, "actor")
+        mock_build_path_hint.assert_any_call(12, "movie", 44, "actor")
+
+    @patch("fastapi_app.main.actor_exists")
+    @patch("fastapi_app.main.movie_exists")
+    @patch("fastapi_app.main.db_get_movies_for_actor")
+    @patch("fastapi_app.main.build_path_hint")
+    def test_get_movies_for_actor_can_return_target_as_immediate_optimal_match(
+        self,
+        mock_build_path_hint,
+        mock_get_movies_for_actor,
+        mock_movie_exists,
+        mock_actor_exists,
+    ):
+        mock_actor_exists.return_value = True
+        mock_movie_exists.return_value = True
+        mock_get_movies_for_actor.return_value = [
+            (161, "Ocean's Eleven", "2001-12-07"),
+        ]
+        mock_build_path_hint.return_value = {
+            "reachable": True,
+            "steps_to_target": 0,
+            "path": [{"id": 161, "type": "movie", "label": "Ocean's Eleven"}],
+        }
+
+        response = self.client.get("/api/actor/1461/movies?target_type=movie&target_id=161")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]["path_hint"]["steps_to_target"], 0)
+        self.assertEqual(response.json()[0]["path_hint"]["path"][0]["label"], "Ocean's Eleven")
+
+    @patch("fastapi_app.main.actor_exists")
+    @patch("fastapi_app.main.movie_exists")
+    @patch("fastapi_app.main.get_actors_in_movie")
+    @patch("fastapi_app.main.build_path_hint")
+    def test_get_costars_returns_raw_popularity_plus_path_hints(
+        self,
+        mock_build_path_hint,
+        mock_get_actors_in_movie,
+        mock_movie_exists,
+        mock_actor_exists,
+    ):
+        mock_movie_exists.return_value = True
+        mock_actor_exists.return_value = True
+        mock_get_actors_in_movie.return_value = [
+            (44, "Matt Damon", 51.25),
+            (55, "Mark Wahlberg", 28.0),
+        ]
+        mock_build_path_hint.side_effect = [
+            {
+                "reachable": True,
+                "steps_to_target": 0,
+                "path": [{"id": 44, "type": "actor", "label": "Matt Damon"}],
+            },
+            {
+                "reachable": True,
+                "steps_to_target": 2,
+                "path": [
+                    {"id": 55, "type": "actor", "label": "Mark Wahlberg"},
+                    {"id": 21, "type": "movie", "label": "The Departed"},
+                    {"id": 44, "type": "actor", "label": "Matt Damon"},
+                ],
+            },
+        ]
+
+        response = self.client.get("/api/movie/11/costars?exclude=George Clooney&target_type=actor&target_id=44")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            [
+                {
+                    "id": 44,
+                    "name": "Matt Damon",
+                    "popularity": 51.25,
+                    "path_hint": {
+                        "reachable": True,
+                        "steps_to_target": 0,
+                        "path": [{"id": 44, "type": "actor", "label": "Matt Damon"}],
+                    },
+                },
+                {
+                    "id": 55,
+                    "name": "Mark Wahlberg",
+                    "popularity": 28.0,
+                    "path_hint": {
+                        "reachable": True,
+                        "steps_to_target": 2,
+                        "path": [
+                            {"id": 55, "type": "actor", "label": "Mark Wahlberg"},
+                            {"id": 21, "type": "movie", "label": "The Departed"},
+                            {"id": 44, "type": "actor", "label": "Matt Damon"},
+                        ],
+                    },
+                },
+            ],
+        )
+        mock_get_actors_in_movie.assert_called_once_with(11, ["George Clooney"])
+
+    @patch("fastapi_app.main.actor_exists")
+    @patch("fastapi_app.main.movie_exists")
+    @patch("fastapi_app.main.get_actors_in_movie")
+    @patch("fastapi_app.main.build_path_hint")
+    def test_get_costars_can_return_target_as_immediate_optimal_match(
+        self,
+        mock_build_path_hint,
+        mock_get_actors_in_movie,
+        mock_movie_exists,
+        mock_actor_exists,
+    ):
+        mock_movie_exists.return_value = True
+        mock_actor_exists.return_value = True
+        mock_get_actors_in_movie.return_value = [
+            (1892, "Matt Damon", 51.25),
+        ]
+        mock_build_path_hint.return_value = {
+            "reachable": True,
+            "steps_to_target": 0,
+            "path": [{"id": 1892, "type": "actor", "label": "Matt Damon"}],
+        }
+
+        response = self.client.get("/api/movie/161/costars?target_type=actor&target_id=1892")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]["path_hint"]["steps_to_target"], 0)
+        self.assertEqual(response.json()[0]["path_hint"]["path"][0]["label"], "Matt Damon")
+
+    @patch("fastapi_app.main.actor_exists")
+    def test_get_movies_for_actor_rejects_partial_target_query(self, mock_actor_exists):
+        mock_actor_exists.return_value = True
+
+        response = self.client.get("/api/actor/9/movies?target_type=actor")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {"detail": "target_type and target_id must be provided together"})
+
+    @patch("fastapi_app.main.vg_get_actor_by_name")
+    @patch("fastapi_app.main.vg_get_movie_by_title")
+    @patch("fastapi_app.main.generate_typed_path")
+    @patch("fastapi_app.main.serialize_typed_path")
+    @patch("fastapi_app.main.pretty_print_path")
+    def test_generate_path_returns_structured_nodes(
+        self,
+        mock_pretty_print_path,
+        mock_serialize_typed_path,
+        mock_generate_typed_path,
+        mock_get_movie_by_title,
+        mock_get_actor_by_name,
+    ):
+        mock_get_actor_by_name.return_value = (1, "George Clooney")
+        mock_get_movie_by_title.return_value = (11, "Ocean's Eleven")
+        mock_generate_typed_path.return_value = [(1, "actor"), (11, "movie")]
+        mock_serialize_typed_path.return_value = [
+            {"id": 1, "type": "actor", "label": "George Clooney"},
+            {"id": 11, "type": "movie", "label": "Ocean's Eleven"},
+        ]
+        mock_pretty_print_path.return_value = "George Clooney -> Ocean's Eleven"
+
+        response = self.client.post(
+            "/api/path/generate",
+            json={
+                "a": {"type": "actor", "value": "George Clooney"},
+                "b": {"type": "movie", "value": "Ocean's Eleven"},
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "path": "George Clooney -> Ocean's Eleven",
+                "nodes": [
+                    {"id": 1, "type": "actor", "label": "George Clooney"},
+                    {"id": 11, "type": "movie", "label": "Ocean's Eleven"},
+                ],
+                "steps": 1,
+                "reason": None,
+            },
+        )
+
+
+if __name__ == "__main__":
+    suite = unittest.defaultTestLoader.loadTestsFromTestCase(TestApiEndpoints)
+    result = unittest.TextTestRunner(verbosity=2).run(suite)
+    passed = result.testsRun - len(result.failures) - len(result.errors)
+    failed = len(result.failures) + len(result.errors)
+    print(f"\nSummary: {passed} passed, {failed} failed, {result.testsRun} total")

@@ -76,4 +76,8 @@ class TestGeneratePath(unittest.TestCase):
         self.assertEqual(path, -1)
 
 if __name__ == "__main__":
-    unittest.main()
+    suite = unittest.defaultTestLoader.loadTestsFromTestCase(TestGeneratePath)
+    result = unittest.TextTestRunner(verbosity=2).run(suite)
+    passed = result.testsRun - len(result.failures) - len(result.errors)
+    failed = len(result.failures) + len(result.errors)
+    print(f"\nSummary: {passed} passed, {failed} failed, {result.testsRun} total")

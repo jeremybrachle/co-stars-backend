@@ -5,26 +5,34 @@ DB_FILE = "movies.db"
 def get_connection():
     return sqlite3.connect(DB_FILE)
 
-# -----------------------------
-# Function 1: BFS to generate a path
-# -----------------------------
-def generate_path(start_id, start_type, end_id, end_type):
-    """
-    Returns a list of alternating actor/movie IDs connecting start to end, regardless of type.
-    start_type/end_type: "actor" or "movie"
-    """
+
+def get_node_label(cursor, node_id, node_type):
+    if node_type == "actor":
+        cursor.execute("SELECT name FROM actors WHERE id = ?", (node_id,))
+        row = cursor.fetchone()
+        return row[0] if row else f"Actor {node_id}"
+
+    cursor.execute("SELECT title FROM movies WHERE id = ?", (node_id,))
+    row = cursor.fetchone()
+    return row[0] if row else f"Movie {node_id}"
+
+
+def generate_typed_path(start_id, start_type, end_id, end_type):
     from collections import deque
+
     conn = get_connection()
     cursor = conn.cursor()
     queue = deque()
     visited = set()
     queue.append((start_id, start_type, [(start_id, start_type)]))
     visited.add((start_id, start_type))
+
     while queue:
         curr_id, curr_type, path = queue.popleft()
         if (curr_id, curr_type) == (end_id, end_type):
-            # Return only the IDs for pretty_print_path
-            return [x[0] for x in path]
+            conn.close()
+            return path
+
         if curr_type == "actor":
             cursor.execute("SELECT movie_id FROM movie_actors WHERE actor_id = ?", (curr_id,))
             for (movie_id,) in cursor.fetchall():
@@ -37,8 +45,56 @@ def generate_path(start_id, start_type, end_id, end_type):
                 if (actor_id, "actor") not in visited:
                     visited.add((actor_id, "actor"))
                     queue.append((actor_id, "actor", path + [(actor_id, "actor")]))
+
     conn.close()
-    return -1  # No path found
+    return -1
+
+
+def serialize_typed_path(path):
+    if path == -1:
+        return []
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    serialized = [
+        {
+            "id": node_id,
+            "type": node_type,
+            "label": get_node_label(cursor, node_id, node_type),
+        }
+        for node_id, node_type in path
+    ]
+    conn.close()
+    return serialized
+
+
+def build_path_hint(start_id, start_type, end_id, end_type):
+    typed_path = generate_typed_path(start_id, start_type, end_id, end_type)
+    if typed_path == -1:
+        return {
+            "reachable": False,
+            "steps_to_target": None,
+            "path": [],
+        }
+
+    return {
+        "reachable": True,
+        "steps_to_target": len(typed_path) - 1,
+        "path": serialize_typed_path(typed_path),
+    }
+
+# -----------------------------
+# Function 1: BFS to generate a path
+# -----------------------------
+def generate_path(start_id, start_type, end_id, end_type):
+    """
+    Returns a list of alternating actor/movie IDs connecting start to end, regardless of type.
+    start_type/end_type: "actor" or "movie"
+    """
+    typed_path = generate_typed_path(start_id, start_type, end_id, end_type)
+    if typed_path == -1:
+        return -1
+    return [node_id for node_id, _node_type in typed_path]
 
 # -----------------------------
 # Function 2: Verify a given path
