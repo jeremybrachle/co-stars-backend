@@ -20,6 +20,7 @@ Run each test independently:
 
 ```bash
 python3 test_api_endpoints.py
+python3 test_data_lookup.py
 python3 test_path_utils.py
 python3 api_smoke_test.py
 ```
@@ -27,9 +28,23 @@ python3 api_smoke_test.py
 ## What The Combined Runner Does
 
 - Runs the API unit tests.
+- Runs the data lookup and snapshot assembly unit tests.
 - Runs the path utility tests.
 - Runs the API smoke test against the local FastAPI server.
 - Prints each suite's full output in one place.
+
+### Data Lookup Unit Tests
+
+Run the DB lookup and snapshot builder tests:
+
+```bash
+python3 test_data_lookup.py
+```
+
+This script:
+- Verifies DB helper lookup behavior against a temporary SQLite fixture
+- Checks ordering, exclusions, existence checks, and ID-based record lookups
+- Verifies frontend snapshot and manifest assembly with mocked data providers
 - Finishes with an overall summary table showing suite status, pass/fail counts, totals, and duration.
 
 ## Smoke Test Requirement
@@ -72,10 +87,11 @@ Overall Test Summary
 Suite              | Status | Passed | Failed | Total | Duration
 -------------------+--------+--------+--------+-------+---------
 API Unit Tests     | PASS   | 11     | 0      | 11    | 0.42 s
+Data Lookup Tests  | PASS   | 6      | 0      | 6     | 0.05 s
 Path Utility Tests | PASS   | 7      | 0      | 7     | 0.08 s
 API Smoke Test     | PASS   | 12     | 0      | 12    | 1.21 s
 ----------------------------------------------------------------------------------------
-Combined totals: 30 passed, 0 failed, 30 total
+Combined totals: 36 passed, 0 failed, 36 total
 ```
 
 That gives you one command for a readable aggregate view while preserving the standalone scripts for targeted debugging.

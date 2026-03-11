@@ -18,6 +18,13 @@ TEST_SUITES = [
         "description": "FastAPI endpoint tests with mocked dependencies.",
     },
     {
+        "key": "data-lookup",
+        "name": "Data Lookup Tests",
+        "command": [sys.executable, "test_data_lookup.py"],
+        "requires_server": False,
+        "description": "DB lookup and frontend snapshot unit tests.",
+    },
+    {
         "key": "path-unit",
         "name": "Path Utility Tests",
         "command": [sys.executable, "test_path_utils.py"],
