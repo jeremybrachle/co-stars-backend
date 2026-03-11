@@ -234,6 +234,57 @@ class TestApiEndpoints(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {"detail": "target_type and target_id must be provided together"})
 
+    @patch("fastapi_app.main.validate_named_path")
+    def test_validate_path_supports_movie_start(self, mock_validate_named_path):
+        mock_validate_named_path.return_value = True
+
+        response = self.client.post(
+            "/api/path/validate",
+            json={
+                "start_type": "movie",
+                "path": ["Ocean's Eleven", "Matt Damon", "The Departed"],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"valid": True})
+        mock_validate_named_path.assert_called_once_with(
+            ["Ocean's Eleven", "Matt Damon", "The Departed"],
+            start_type="movie",
+        )
+
+    @patch("fastapi_app.main.normalize_path")
+    def test_normalize_path_rewinds_to_previous_repeat(self, mock_normalize_path):
+        mock_normalize_path.return_value = {
+            "original_path": ["George Clooney", "Ocean's Eleven", "Brad Pitt", "The Mexican", "George Clooney"],
+            "normalized_path": ["George Clooney"],
+            "loop_detected": True,
+            "rewind_to_index": 0,
+            "repeated_node": {"type": "actor", "label": "George Clooney"},
+            "removed_segment": [
+                {"type": "movie", "label": "Ocean's Eleven"},
+                {"type": "actor", "label": "Brad Pitt"},
+                {"type": "movie", "label": "The Mexican"},
+            ],
+        }
+
+        response = self.client.post(
+            "/api/path/normalize",
+            json={
+                "start_type": "actor",
+                "path": ["George Clooney", "Ocean's Eleven", "Brad Pitt", "The Mexican", "George Clooney"],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["loop_detected"], True)
+        self.assertEqual(response.json()["normalized_path"], ["George Clooney"])
+        self.assertEqual(response.json()["rewind_to_index"], 0)
+        mock_normalize_path.assert_called_once_with(
+            ["George Clooney", "Ocean's Eleven", "Brad Pitt", "The Mexican", "George Clooney"],
+            start_type="actor",
+        )
+
     @patch("fastapi_app.main.vg_get_actor_by_name")
     @patch("fastapi_app.main.vg_get_movie_by_title")
     @patch("fastapi_app.main.generate_typed_path")

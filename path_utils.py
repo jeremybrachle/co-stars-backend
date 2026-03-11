@@ -6,6 +6,98 @@ def get_connection():
     return sqlite3.connect(DB_FILE)
 
 
+def next_node_type(node_type):
+    return "movie" if node_type == "actor" else "actor"
+
+
+def normalize_path(path, start_type="actor"):
+    normalized = []
+    loop_detected = False
+    repeated_node = None
+    rewind_to_index = None
+    removed_segment = []
+    current_type = start_type
+
+    for label in path:
+        existing_index = next(
+            (
+                index
+                for index, node in enumerate(normalized)
+                if node["type"] == current_type and node["label"] == label
+            ),
+            None,
+        )
+
+        if existing_index is not None:
+            loop_detected = True
+            repeated_node = {"type": current_type, "label": label}
+            rewind_to_index = existing_index
+            removed_segment = normalized[existing_index + 1 :]
+            normalized = normalized[: existing_index + 1]
+        else:
+            normalized.append({"type": current_type, "label": label})
+
+        current_type = next_node_type(current_type)
+
+    return {
+        "original_path": list(path),
+        "normalized_path": [node["label"] for node in normalized],
+        "loop_detected": loop_detected,
+        "rewind_to_index": rewind_to_index,
+        "repeated_node": repeated_node,
+        "removed_segment": removed_segment,
+    }
+
+
+def validate_named_path(path, start_type="actor"):
+    if not path or len(path) < 2:
+        return False
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    current_type = start_type
+
+    for index in range(len(path) - 1):
+        current_label = path[index]
+        next_label = path[index + 1]
+
+        if current_type == "actor":
+            cursor.execute(
+                """
+                SELECT 1
+                FROM actors a
+                JOIN movie_actors ma ON a.id = ma.actor_id
+                JOIN movies m ON ma.movie_id = m.id
+                WHERE a.name = ? COLLATE NOCASE
+                AND m.title = ? COLLATE NOCASE
+                LIMIT 1
+                """,
+                (current_label, next_label),
+            )
+        else:
+            cursor.execute(
+                """
+                SELECT 1
+                FROM movies m
+                JOIN movie_actors ma ON m.id = ma.movie_id
+                JOIN actors a ON ma.actor_id = a.id
+                WHERE m.title = ? COLLATE NOCASE
+                AND a.name = ? COLLATE NOCASE
+                LIMIT 1
+                """,
+                (current_label, next_label),
+            )
+
+        if cursor.fetchone() is None:
+            conn.close()
+            return False
+
+        current_type = next_node_type(current_type)
+
+    conn.close()
+    return True
+
+
 def get_node_label(cursor, node_id, node_type):
     if node_type == "actor":
         cursor.execute("SELECT name FROM actors WHERE id = ?", (node_id,))

@@ -7,9 +7,15 @@ from versus_game import (
     get_actor_by_name as vg_get_actor_by_name,
     get_actor_details_by_name as vg_get_actor_details_by_name,
     get_movie_by_title as vg_get_movie_by_title,
-    validate_path as vg_validate_path
 )
-from path_utils import build_path_hint, generate_typed_path, pretty_print_path, serialize_typed_path
+from path_utils import (
+    build_path_hint,
+    generate_typed_path,
+    normalize_path,
+    pretty_print_path,
+    serialize_typed_path,
+    validate_named_path,
+)
 from db_helper import (
     actor_exists,
     get_actors_in_movie,
@@ -137,11 +143,30 @@ PATH_GENERATE_RESPONSE_EXAMPLE = {
 }
 
 PATH_VALIDATE_REQUEST_EXAMPLE = {
+    "start_type": "actor",
     "path": ["George Clooney", "Ocean's Eleven", "Matt Damon"],
 }
 
 PATH_VALIDATE_RESPONSE_EXAMPLE = {
     "valid": True,
+}
+
+PATH_NORMALIZE_REQUEST_EXAMPLE = {
+    "start_type": "actor",
+    "path": ["George Clooney", "Ocean's Eleven", "Brad Pitt", "The Mexican", "George Clooney"],
+}
+
+PATH_NORMALIZE_RESPONSE_EXAMPLE = {
+    "original_path": ["George Clooney", "Ocean's Eleven", "Brad Pitt", "The Mexican", "George Clooney"],
+    "normalized_path": ["George Clooney"],
+    "loop_detected": True,
+    "rewind_to_index": 0,
+    "repeated_node": {"type": "actor", "label": "George Clooney"},
+    "removed_segment": [
+        {"type": "movie", "label": "Ocean's Eleven"},
+        {"type": "actor", "label": "Brad Pitt"},
+        {"type": "movie", "label": "The Mexican"},
+    ],
 }
 
 NOT_FOUND_EXAMPLE = {"error": "Actor not found"}
@@ -163,6 +188,11 @@ class NodeType(str, Enum):
 
 class NodeSummary(BaseModel):
     id: int
+    type: NodeType
+    label: str
+
+
+class PathLabelNode(BaseModel):
     type: NodeType
     label: str
 
@@ -274,11 +304,26 @@ class MovieSuggestion(Movie):
     path_hint: Optional[PathHint] = None
 
 class PathValidateRequest(BaseModel):
+    start_type: NodeType = NodeType.actor
     path: List[str]
 
 class PathValidateResponse(BaseModel):
     valid: bool
     message: Optional[str] = None
+
+
+class PathNormalizeRequest(BaseModel):
+    start_type: NodeType = NodeType.actor
+    path: List[str]
+
+
+class PathNormalizeResponse(BaseModel):
+    original_path: List[str]
+    normalized_path: List[str]
+    loop_detected: bool
+    rewind_to_index: Optional[int] = None
+    repeated_node: Optional[PathLabelNode] = None
+    removed_segment: List[PathLabelNode] = Field(default_factory=list)
 
 
 def resolve_target_node(target_type: Optional[NodeType], target_id: Optional[int]):
@@ -466,6 +511,7 @@ def get_costars_for_movie(
 @app.post(
     "/api/path/validate",
     response_model=PathValidateResponse,
+    response_model_exclude_none=True,
     summary="Validate a path",
     tags=["Gameplay"],
     responses={
@@ -483,16 +529,24 @@ def validate_path(
             "invalidPath": {
                 "summary": "Invalid alternating path",
                 "value": {
+                    "start_type": "actor",
                     "path": ["George Clooney", "Ocean's Eleven", "Definitely Not In This Movie"],
+                },
+            },
+            "movieStartPath": {
+                "summary": "Movie-first alternating path",
+                "value": {
+                    "start_type": "movie",
+                    "path": ["Ocean's Eleven", "Matt Damon", "The Departed"],
                 },
             },
         },
     )
 ):
-    """Validates a path (actor -> movie -> actor ...). Returns whether the path is valid."""
+    """Validates an alternating path for either actor-first or movie-first gameplay."""
     if not req.path or not isinstance(req.path, list):
         return {"valid": False, "message": "Missing or invalid path"}
-    valid = vg_validate_path(req.path)
+    valid = validate_named_path(req.path, start_type=req.start_type.value)
     # Always omit 'message' if None or missing
     def strip_message_none(obj):
         if isinstance(obj, tuple):
@@ -513,6 +567,41 @@ def validate_path(
             return result
         return {"valid": obj}
     return strip_message_none(valid)
+
+
+@app.post(
+    "/api/path/normalize",
+    response_model=PathNormalizeResponse,
+    summary="Normalize repeated nodes in a path",
+    tags=["Gameplay"],
+    responses={
+        200: {"content": {"application/json": {"example": PATH_NORMALIZE_RESPONSE_EXAMPLE}}},
+    },
+)
+def normalize_path_endpoint(
+    req: PathNormalizeRequest = Body(
+        ...,
+        openapi_examples={
+            "actorStartLoop": {
+                "summary": "Actor-first loop rewind",
+                "value": PATH_NORMALIZE_REQUEST_EXAMPLE,
+            },
+            "movieStartLoop": {
+                "summary": "Movie-first loop rewind",
+                "value": {
+                    "start_type": "movie",
+                    "path": ["Ocean's Eleven", "Matt Damon", "The Departed", "Mark Wahlberg", "Ocean's Eleven"],
+                },
+            },
+        },
+    )
+):
+    """Collapses repeated actors or movies by rewinding the path to the earlier occurrence."""
+    if not req.path or not isinstance(req.path, list):
+        raise HTTPException(status_code=400, detail="Missing or invalid path")
+
+    normalized = normalize_path(req.path, start_type=req.start_type.value)
+    return normalized
 
 
 # --- Notes ---

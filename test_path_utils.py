@@ -1,5 +1,5 @@
 import unittest
-from path_utils import generate_path, pretty_print_path, get_connection
+from path_utils import generate_path, normalize_path, pretty_print_path, validate_named_path, get_connection
 
 def get_actor_id_by_name(name):
     conn = get_connection()
@@ -74,6 +74,29 @@ class TestGeneratePath(unittest.TestCase):
         print("Expected: -1 (no path found)")
         print("============================\n")
         self.assertEqual(path, -1)
+
+    def test_normalize_path_rewinds_actor_repeat(self):
+        result = normalize_path(
+            ["George Clooney", "Ocean's Eleven", "Brad Pitt", "The Mexican", "George Clooney"],
+            start_type="actor",
+        )
+
+        self.assertTrue(result["loop_detected"])
+        self.assertEqual(result["normalized_path"], ["George Clooney"])
+        self.assertEqual(result["rewind_to_index"], 0)
+
+    def test_normalize_path_rewinds_movie_repeat(self):
+        result = normalize_path(
+            ["Ocean's Eleven", "Matt Damon", "The Departed", "Mark Wahlberg", "Ocean's Eleven"],
+            start_type="movie",
+        )
+
+        self.assertTrue(result["loop_detected"])
+        self.assertEqual(result["normalized_path"], ["Ocean's Eleven"])
+        self.assertEqual(result["repeated_node"], {"type": "movie", "label": "Ocean's Eleven"})
+
+    def test_validate_named_path_supports_movie_start(self):
+        self.assertTrue(validate_named_path(["Ocean's Eleven", "Matt Damon"], start_type="movie"))
 
 if __name__ == "__main__":
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(TestGeneratePath)
