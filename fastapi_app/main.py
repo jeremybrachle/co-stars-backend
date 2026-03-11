@@ -24,12 +24,13 @@ from db_helper import (
     get_movies_for_actor as db_get_movies_for_actor,
     movie_exists,
 )
+from project_version import get_project_version
 import json
 
 app = FastAPI(
     title="Co-Stars API",
     description="A FastAPI backend for actor/movie game. All endpoints are documented and testable via the Swagger UI.",
-    version="2.0.0",
+    version=get_project_version(),
 )
 
 LEVELS_EXAMPLE = [

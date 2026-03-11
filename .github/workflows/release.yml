@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Semantic version without the leading v, for example 1.0.0'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Resolve target version
+        id: target
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Validate VERSION file matches release target
+        shell: bash
+        run: |
+          FILE_VERSION="$(tr -d '[:space:]' < VERSION)"
+          TARGET_VERSION="${{ steps.target.outputs.version }}"
+
+          if [ "$FILE_VERSION" != "$TARGET_VERSION" ]; then
+            echo "VERSION file ($FILE_VERSION) does not match release target ($TARGET_VERSION)."
+            exit 1
+          fi
+
+      - name: Extract changelog notes
+        run: python extract_release_notes.py "${{ steps.target.outputs.version }}" --output release_notes.md
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.target.outputs.tag }}
+          name: ${{ steps.target.outputs.tag }}
+          body_path: release_notes.md
+          generate_release_notes: false
+          draft: false
+          prerelease: false

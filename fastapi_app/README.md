@@ -3,6 +3,10 @@
 
 This project is now a FastAPI-only backend for exploring connections between actors and movies. All endpoints are documented and testable via the interactive Swagger UI at `/docs` or `/redoc`.
 
+The application version is now sourced from the root `VERSION` file so releases can be managed consistently across docs, the API, and CI.
+
+GitHub Releases can also be generated from matching git tags and changelog entries, so a release tag like `v1.0.1` can publish the `1.0.1` notes automatically.
+
 ## How to Run
 
 1. Install dependencies:
@@ -57,3 +61,4 @@ All endpoints are powered by your SQLite database and helper functions. Sample p
 - The Flask implementation and all template files have been removed. This project is now FastAPI-only.
 - You can visually explore and test all endpoints at `/docs`.
 - For database setup and ingestion, see the main project README.
+- For release versioning and changelog workflow, see `RELEASING.md` in the project root.

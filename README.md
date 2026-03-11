@@ -3,6 +3,8 @@
 
 Co-Stars Backend is a FastAPI-only backend for exploring connections between actors and movies. All endpoints are documented and testable via the interactive Swagger UI at `/docs` or `/redoc`.
 
+Release versioning now starts from `1.0.0`, with the current application version sourced from the root `VERSION` file.
+
 ## Overview
 
 - Query actor/movie data and relationships from a local SQLite database
@@ -237,6 +239,37 @@ This script:
 - Checks optional `path_hint` metadata on actor and movie suggestion responses
 - Verifies structured `POST /api/path/generate` output
 - Uses mocked dependencies so endpoint behavior can be validated without relying on live DB state
+
+## Release Management
+
+This repository now tracks releases with a root-level `VERSION` file and `CHANGELOG.md`.
+
+- The initial stable baseline is `1.0.0`.
+- Update release notes in `CHANGELOG.md` under `Unreleased`.
+- Bump versions with `python3 bump_version.py patch`, `python3 bump_version.py minor`, `python3 bump_version.py major`, or an explicit version like `python3 bump_version.py 1.2.3`.
+- See `RELEASING.md` for the full release flow.
+
+## GitHub Actions CI
+
+The repository now includes a GitHub Actions workflow in `.github/workflows/ci.yml`.
+
+- It runs on pushes to `main`.
+- It runs on pushes to branches.
+- It runs on pull requests, which are the GitHub equivalent of GitLab merge requests.
+- It currently includes separate jobs for build validation, API unit tests, and path utility tests.
+- CI seeds a deterministic SQLite fixture before DB-backed jobs so the pipeline does not depend on a checked-in `movies.db` file.
+- Live smoke tests are intentionally left out of GitHub CI for now and can continue to run locally until the deployed backend flow is ready.
+
+## GitHub Releases
+
+You can map GitHub Releases directly to your changelog versions.
+
+- Create or bump the target version with `bump_version.py`.
+- Commit the updated `VERSION` and `CHANGELOG.md`.
+- Push a matching tag like `v1.0.1`.
+- The `Release` GitHub Actions workflow will validate the tag against `VERSION` and publish a GitHub Release using the matching section from `CHANGELOG.md`.
+
+See `RELEASING.md` for the full release workflow.
 
 ## Notes
 - The backend is now FastAPI-only. All Flask and template files have been removed.
