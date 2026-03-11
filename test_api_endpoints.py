@@ -10,6 +10,71 @@ class TestApiEndpoints(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
 
+    def test_health_check_returns_status_and_version(self):
+        response = self.client.get("/api/health")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "ok")
+        self.assertIn("version", response.json())
+
+    @patch("fastapi_app.main.build_frontend_manifest")
+    def test_export_frontend_manifest_returns_refresh_metadata(self, mock_build_frontend_manifest):
+        mock_build_frontend_manifest.return_value = {
+            "version": "1.0.0",
+            "source_updated_at": "2026-03-11T00:00:00+00:00",
+            "actor_count": 2,
+            "movie_count": 1,
+            "relationship_count": 2,
+            "level_count": 1,
+            "recommended_refresh_interval_hours": 168,
+            "snapshot_endpoint": "/api/export/frontend-snapshot",
+        }
+
+        response = self.client.get("/api/export/frontend-manifest")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["recommended_refresh_interval_hours"], 168)
+        self.assertEqual(response.json()["snapshot_endpoint"], "/api/export/frontend-snapshot")
+        mock_build_frontend_manifest.assert_called_once()
+
+    @patch("fastapi_app.main.build_frontend_snapshot")
+    def test_export_frontend_snapshot_returns_full_graph_payload(self, mock_build_frontend_snapshot):
+        mock_build_frontend_snapshot.return_value = {
+            "meta": {
+                "version": "1.0.0",
+                "exported_at": "2026-03-11T00:00:00+00:00",
+                "actor_count": 2,
+                "movie_count": 1,
+                "relationship_count": 2,
+                "level_count": 1,
+            },
+            "actors": [
+                {"id": 1, "name": "George Clooney", "popularity": 33.1},
+                {"id": 2, "name": "Matt Damon", "popularity": 51.25},
+            ],
+            "movies": [
+                {"id": 11, "title": "Ocean's Eleven", "release_date": "2001-12-07"},
+            ],
+            "movie_actors": [
+                {"movie_id": 11, "actor_id": 1},
+                {"movie_id": 11, "actor_id": 2},
+            ],
+            "adjacency": {
+                "actor_to_movies": {"1": [11], "2": [11]},
+                "movie_to_actors": {"11": [1, 2]},
+            },
+            "levels": [
+                {"actor_a": "George Clooney", "actor_b": "Matt Damon", "stars": 3},
+            ],
+        }
+
+        response = self.client.get("/api/export/frontend-snapshot")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["meta"]["relationship_count"], 2)
+        self.assertEqual(response.json()["adjacency"]["movie_to_actors"]["11"], [1, 2])
+        mock_build_frontend_snapshot.assert_called_once()
+
     @patch("fastapi_app.main.get_all_actors")
     def test_get_all_actors_returns_full_actor_records(self, mock_get_all_actors):
         mock_get_all_actors.return_value = [
