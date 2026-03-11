@@ -181,6 +181,22 @@ All database operations use `movies.db` as the default SQLite database file. Thi
 
 ## Testing
 
+For a single command that runs the full suite and prints one aggregate summary table, see `TESTING.md`.
+
+### Run Everything Together
+
+If the FastAPI server is already running at `http://localhost:8000`, run:
+
+```bash
+python3 run_all_tests.py
+```
+
+If you only want the local unit-style checks and want to skip the live smoke test:
+
+```bash
+python3 run_all_tests.py --skip-smoke
+```
+
 ### API Smoke Tests
 
 Run the strict API smoke test to validate all endpoints and pathfinding logic:
