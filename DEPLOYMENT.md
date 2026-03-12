@@ -15,6 +15,8 @@ This backend is ready to serve frontend snapshot data, but deployment is not jus
 
 ## Environment
 
+Start from `.env.example` and copy the values you need into your deployed environment.
+
 Set `ALLOWED_ORIGINS` as a comma-separated list. Example:
 
 ```text
