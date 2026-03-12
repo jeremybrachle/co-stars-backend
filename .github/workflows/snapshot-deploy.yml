@@ -13,6 +13,30 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      git_ref:
+        description: Git ref to deploy, for example main or a branch name
+        required: false
+        default: main
+        type: string
+      deploy_prefix:
+        description: Optional S3 prefix override, for example co-stars/prod
+        required: false
+        type: string
+      snapshot_base_url:
+        description: Optional public base URL override, for example https://cdn.example.com
+        required: false
+        type: string
+      publish_to_s3:
+        description: Publish exported files to S3
+        required: true
+        default: true
+        type: boolean
+      invalidate_cloudfront:
+        description: Invalidate CloudFront after publish if distribution ID is configured
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -29,6 +53,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.git_ref || github.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -49,6 +75,8 @@ jobs:
         env:
           MAIN_PREFIX: ${{ vars.SNAPSHOT_MAIN_PREFIX }}
           BASE_URL: ${{ vars.SNAPSHOT_BASE_URL }}
+          INPUT_DEPLOY_PREFIX: ${{ inputs.deploy_prefix }}
+          INPUT_BASE_URL: ${{ inputs.snapshot_base_url }}
         run: |
           set -euo pipefail
 
@@ -60,9 +88,18 @@ jobs:
           }
 
           MAIN_PREFIX="$(normalize_prefix "${MAIN_PREFIX:-co-stars/prod}")"
-          BASE_URL="${BASE_URL%/}"
 
-          DEPLOY_PREFIX="$MAIN_PREFIX"
+          if [ -n "${INPUT_DEPLOY_PREFIX:-}" ]; then
+            DEPLOY_PREFIX="$(normalize_prefix "$INPUT_DEPLOY_PREFIX")"
+          else
+            DEPLOY_PREFIX="$MAIN_PREFIX"
+          fi
+
+          if [ -n "${INPUT_BASE_URL:-}" ]; then
+            BASE_URL="$INPUT_BASE_URL"
+          fi
+
+          BASE_URL="${BASE_URL%/}"
 
           if [ -n "$BASE_URL" ]; then
             SNAPSHOT_URL="$BASE_URL/$DEPLOY_PREFIX/frontend-snapshot.json"
@@ -94,6 +131,7 @@ jobs:
 
       - name: Configure AWS credentials
         if: |
+          (github.event_name != 'workflow_dispatch' || inputs.publish_to_s3) &&
           vars.AWS_ROLE_ARN != '' &&
           vars.AWS_REGION != '' &&
           vars.SNAPSHOT_S3_BUCKET != '' &&
@@ -105,6 +143,7 @@ jobs:
 
       - name: Publish static assets to S3
         if: |
+          (github.event_name != 'workflow_dispatch' || inputs.publish_to_s3) &&
           vars.AWS_ROLE_ARN != '' &&
           vars.AWS_REGION != '' &&
           vars.SNAPSHOT_S3_BUCKET != '' &&
@@ -124,6 +163,8 @@ jobs:
 
       - name: Invalidate CloudFront cache
         if: |
+          (github.event_name != 'workflow_dispatch' || inputs.publish_to_s3) &&
+          (github.event_name != 'workflow_dispatch' || inputs.invalidate_cloudfront) &&
           vars.CLOUDFRONT_DISTRIBUTION_ID != '' &&
           vars.AWS_ROLE_ARN != '' &&
           vars.AWS_REGION != '' &&
@@ -146,8 +187,14 @@ jobs:
           {
             echo "## Snapshot Deployment"
             echo
+            echo "- Event: ${{ github.event_name }}"
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              echo "- Git ref: ${{ inputs.git_ref || 'main' }}"
+              echo "- Publish to S3: ${{ inputs.publish_to_s3 }}"
+              echo "- Invalidate CloudFront: ${{ inputs.invalidate_cloudfront }}"
+            fi
             echo "- S3 prefix: s3://${{ vars.SNAPSHOT_S3_BUCKET }}/${{ steps.target.outputs.deploy_prefix }}"
-            if [ -n "${{ vars.SNAPSHOT_BASE_URL }}" ]; then
+            if [ "${{ steps.target.outputs.manifest_url }}" != "frontend-manifest.json" ]; then
               echo "- Manifest URL: ${{ steps.target.outputs.manifest_url }}"
               echo "- Snapshot URL: ${{ steps.target.outputs.snapshot_url }}"
             else

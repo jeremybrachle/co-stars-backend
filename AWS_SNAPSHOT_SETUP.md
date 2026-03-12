@@ -224,6 +224,37 @@ You have three ways to trigger it:
 
 For the first test, a same-repo pull request is a good choice because it exercises the full AWS path before merge.
 
+### Manual Workflow Inputs
+
+The manual `workflow_dispatch` path now supports these inputs:
+
+- `git_ref`
+  - branch, tag, or ref to deploy
+- `deploy_prefix`
+  - optional override for the S3 key prefix
+- `snapshot_base_url`
+  - optional override for the public manifest and snapshot base URL
+- `publish_to_s3`
+  - if `false`, the workflow only exports files and uploads the GitHub artifact
+- `invalidate_cloudfront`
+  - if `true`, invalidates CloudFront after publish when a distribution ID is configured
+
+Useful examples:
+
+1. Export only from `main` without publishing to AWS.
+2. Publish a branch to the normal production prefix.
+3. Publish a branch to a temporary prefix such as `co-stars/test-run`.
+
+Example manual run values:
+
+```text
+git_ref=main
+deploy_prefix=co-stars/prod
+snapshot_base_url=https://d111111abcdef8.cloudfront.net
+publish_to_s3=true
+invalidate_cloudfront=true
+```
+
 ## Step 9: Verify The Files In S3
 
 Check that these objects exist:
