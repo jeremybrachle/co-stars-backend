@@ -74,6 +74,10 @@ jobs:
 
           normalize_prefix() {
             local value="$1"
+            if [ -z "$value" ]; then
+              printf ''
+              return
+            fi
             value="${value#/}"
             value="${value%/}"
             printf '%s' "$value"
@@ -93,15 +97,25 @@ jobs:
 
           BASE_URL="${BASE_URL%/}"
 
+          if [ -n "$DEPLOY_PREFIX" ]; then
+            SNAPSHOT_KEY="$DEPLOY_PREFIX/frontend-snapshot.json"
+            MANIFEST_KEY="$DEPLOY_PREFIX/frontend-manifest.json"
+          else
+            SNAPSHOT_KEY="frontend-snapshot.json"
+            MANIFEST_KEY="frontend-manifest.json"
+          fi
+
           if [ -n "$BASE_URL" ]; then
-            SNAPSHOT_URL="$BASE_URL/$DEPLOY_PREFIX/frontend-snapshot.json"
-            MANIFEST_URL="$BASE_URL/$DEPLOY_PREFIX/frontend-manifest.json"
+            SNAPSHOT_URL="$BASE_URL/$SNAPSHOT_KEY"
+            MANIFEST_URL="$BASE_URL/$MANIFEST_KEY"
           else
             SNAPSHOT_URL="frontend-snapshot.json"
             MANIFEST_URL="frontend-manifest.json"
           fi
 
           echo "deploy_prefix=$DEPLOY_PREFIX" >> "$GITHUB_OUTPUT"
+          echo "snapshot_key=$SNAPSHOT_KEY" >> "$GITHUB_OUTPUT"
+          echo "manifest_key=$MANIFEST_KEY" >> "$GITHUB_OUTPUT"
           echo "snapshot_url=$SNAPSHOT_URL" >> "$GITHUB_OUTPUT"
           echo "manifest_url=$MANIFEST_URL" >> "$GITHUB_OUTPUT"
 
@@ -214,19 +228,20 @@ jobs:
         shell: bash
         env:
           BUCKET: ${{ steps.validate.outputs.bucket_value }}
-          DEPLOY_PREFIX: ${{ steps.target.outputs.deploy_prefix }}
+          SNAPSHOT_KEY: ${{ steps.target.outputs.snapshot_key }}
+          MANIFEST_KEY: ${{ steps.target.outputs.manifest_key }}
         run: |
           set -euo pipefail
 
-          echo "Publishing snapshot to s3://$BUCKET/$DEPLOY_PREFIX/frontend-snapshot.json"
-          aws s3 cp dist/frontend-snapshot.json "s3://$BUCKET/$DEPLOY_PREFIX/frontend-snapshot.json" \
+          echo "Publishing snapshot to s3://$BUCKET/$SNAPSHOT_KEY"
+          aws s3 cp dist/frontend-snapshot.json "s3://$BUCKET/$SNAPSHOT_KEY" \
             --content-type application/json \
-            --cache-control public, max-age=300
+            --cache-control "public, max-age=300"
 
-          echo "Publishing manifest to s3://$BUCKET/$DEPLOY_PREFIX/frontend-manifest.json"
-          aws s3 cp dist/frontend-manifest.json "s3://$BUCKET/$DEPLOY_PREFIX/frontend-manifest.json" \
+          echo "Publishing manifest to s3://$BUCKET/$MANIFEST_KEY"
+          aws s3 cp dist/frontend-manifest.json "s3://$BUCKET/$MANIFEST_KEY" \
             --content-type application/json \
-            --cache-control no-cache, no-store, must-revalidate
+            --cache-control "no-cache, no-store, must-revalidate"
 
       - name: Verify S3 objects
         if: |
@@ -236,7 +251,11 @@ jobs:
           BUCKET: ${{ steps.validate.outputs.bucket_value }}
           DEPLOY_PREFIX: ${{ steps.target.outputs.deploy_prefix }}
         run: |
-          aws s3 ls "s3://$BUCKET/$DEPLOY_PREFIX/"
+          if [ -n "$DEPLOY_PREFIX" ]; then
+            aws s3 ls "s3://$BUCKET/$DEPLOY_PREFIX/"
+          else
+            aws s3 ls "s3://$BUCKET/"
+          fi
 
       - name: Invalidate CloudFront cache
         if: |
@@ -248,13 +267,14 @@ jobs:
         shell: bash
         env:
           DISTRIBUTION_ID: ${{ steps.validate.outputs.distribution_value }}
-          DEPLOY_PREFIX: ${{ steps.target.outputs.deploy_prefix }}
+          SNAPSHOT_KEY: ${{ steps.target.outputs.snapshot_key }}
+          MANIFEST_KEY: ${{ steps.target.outputs.manifest_key }}
         run: |
           aws cloudfront create-invalidation \
             --distribution-id "$DISTRIBUTION_ID" \
             --paths \
-              "/$DEPLOY_PREFIX/frontend-manifest.json" \
-              "/$DEPLOY_PREFIX/frontend-snapshot.json"
+              "/$MANIFEST_KEY" \
+              "/$SNAPSHOT_KEY"
 
       - name: Write workflow summary
         shell: bash
@@ -268,7 +288,11 @@ jobs:
               echo "- Publish to S3: ${{ inputs.publish_to_s3 }}"
               echo "- Invalidate CloudFront: ${{ inputs.invalidate_cloudfront }}"
             fi
-            echo "- S3 prefix: s3://${{ steps.validate.outputs.bucket_value }}/${{ steps.target.outputs.deploy_prefix }}"
+            if [ -n "${{ steps.target.outputs.deploy_prefix }}" ]; then
+              echo "- S3 prefix: s3://${{ steps.validate.outputs.bucket_value }}/${{ steps.target.outputs.deploy_prefix }}"
+            else
+              echo "- S3 prefix: s3://${{ steps.validate.outputs.bucket_value }}/"
+            fi
             if [ "${{ steps.target.outputs.manifest_url }}" != "frontend-manifest.json" ]; then
               echo "- Manifest URL: ${{ steps.target.outputs.manifest_url }}"
               echo "- Snapshot URL: ${{ steps.target.outputs.snapshot_url }}"

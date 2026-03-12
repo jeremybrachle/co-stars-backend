@@ -18,6 +18,8 @@ s3://<bucket>/co-stars/prod/frontend-manifest.json
 s3://<bucket>/co-stars/prod/frontend-snapshot.json
 ```
 
+You do not need to create that directory in advance. S3 does not have real directories; `co-stars/prod/` is just an object key prefix. Uploading the files creates those keys automatically.
+
 If you serve the bucket through CloudFront, the public URLs would typically be:
 
 ```text
@@ -35,6 +37,34 @@ You have two common options:
 2. Use a separate S3 bucket just for snapshot data.
 
 The simplest setup is usually the same bucket, with a separate prefix such as `co-stars/prod/`.
+
+If you want the files somewhere else, that is fine too. Common choices are:
+
+1. bucket root
+2. `docs/`
+3. `co-stars/prod/`
+
+Examples:
+
+```text
+SNAPSHOT_MAIN_PREFIX=
+SNAPSHOT_MAIN_PREFIX=docs
+SNAPSHOT_MAIN_PREFIX=co-stars/prod
+```
+
+An empty `SNAPSHOT_MAIN_PREFIX` publishes these files at bucket root:
+
+```text
+s3://<bucket>/frontend-manifest.json
+s3://<bucket>/frontend-snapshot.json
+```
+
+Using `docs` publishes:
+
+```text
+s3://<bucket>/docs/frontend-manifest.json
+s3://<bucket>/docs/frontend-snapshot.json
+```
 
 ## Step 2: Confirm CloudFront Routing
 
@@ -202,6 +232,18 @@ SNAPSHOT_S3_BUCKET=my-frontend-bucket
 SNAPSHOT_MAIN_PREFIX=co-stars/prod
 CLOUDFRONT_DISTRIBUTION_ID=E123ABC456XYZ
 SNAPSHOT_BASE_URL=https://d111111abcdef8.cloudfront.net
+```
+
+If you want the files at the bucket root, set:
+
+```text
+SNAPSHOT_MAIN_PREFIX=
+```
+
+If you want them under `docs`, set:
+
+```text
+SNAPSHOT_MAIN_PREFIX=docs
 ```
 
 If you already have frontend deployment variables, the workflow can now reuse these existing names as fallbacks:
