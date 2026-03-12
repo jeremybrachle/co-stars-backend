@@ -3,7 +3,7 @@
 
 Co-Stars Backend is a FastAPI-only backend for exploring connections between actors and movies. All endpoints are documented and testable via the interactive Swagger UI at `/docs` or `/redoc`.
 
-Release versioning now starts from `1.0.0`, with the current application version sourced from the root `VERSION` file.
+Release versioning now starts from `2.0.0`, with the current application version sourced from the root `VERSION` file.
 
 ## Overview
 
@@ -253,7 +253,7 @@ This script:
 
 This repository now tracks releases with a root-level `VERSION` file and `CHANGELOG.md`.
 
-- The initial stable baseline is `1.0.0`.
+- The initial stable baseline is `2.0.0`.
 - Update release notes in `CHANGELOG.md` under `Unreleased`.
 - Bump versions with `python3 bump_version.py patch`, `python3 bump_version.py minor`, `python3 bump_version.py major`, or an explicit version like `python3 bump_version.py 1.2.3`.
 - See `RELEASING.md` for the full release flow.

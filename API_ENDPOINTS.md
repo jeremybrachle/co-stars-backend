@@ -83,7 +83,7 @@ GET http://localhost:8000/api/export/frontend-snapshot
 ```json
 {
   "meta": {
-    "version": "1.0.0",
+    "version": "2.0.0",
     "exported_at": "2026-03-11T00:00:00+00:00",
     "actor_count": 2,
     "movie_count": 1,

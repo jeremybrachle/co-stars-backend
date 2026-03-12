@@ -20,7 +20,7 @@ class TestApiEndpoints(unittest.TestCase):
     @patch("fastapi_app.main.build_frontend_manifest")
     def test_export_frontend_manifest_returns_refresh_metadata(self, mock_build_frontend_manifest):
         mock_build_frontend_manifest.return_value = {
-            "version": "1.0.0",
+            "version": "2.0.0",
             "source_updated_at": "2026-03-11T00:00:00+00:00",
             "actor_count": 2,
             "movie_count": 1,
@@ -41,7 +41,7 @@ class TestApiEndpoints(unittest.TestCase):
     def test_export_frontend_snapshot_returns_full_graph_payload(self, mock_build_frontend_snapshot):
         mock_build_frontend_snapshot.return_value = {
             "meta": {
-                "version": "1.0.0",
+                "version": "2.0.0",
                 "exported_at": "2026-03-11T00:00:00+00:00",
                 "actor_count": 2,
                 "movie_count": 1,

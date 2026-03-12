@@ -91,7 +91,7 @@ MOVIES_EXAMPLE = [
 
 FRONTEND_SNAPSHOT_EXAMPLE = {
     "meta": {
-        "version": "1.0.0",
+        "version": "2.0.0",
         "exported_at": "2026-03-11T00:00:00+00:00",
         "actor_count": 2,
         "movie_count": 1,
@@ -117,7 +117,7 @@ FRONTEND_SNAPSHOT_EXAMPLE = {
 }
 
 FRONTEND_MANIFEST_EXAMPLE = {
-    "version": "1.0.0",
+    "version": "2.0.0",
     "source_updated_at": "2026-03-11T00:00:00+00:00",
     "actor_count": 2,
     "movie_count": 1,
@@ -129,7 +129,7 @@ FRONTEND_MANIFEST_EXAMPLE = {
 
 HEALTH_EXAMPLE = {
     "status": "ok",
-    "version": "1.0.0",
+    "version": "2.0.0",
 }
 
 MOVIE_SUGGESTIONS_EXAMPLE = [

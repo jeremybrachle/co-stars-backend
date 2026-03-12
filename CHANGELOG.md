@@ -9,11 +9,12 @@ The format follows Keep a Changelog and the project uses Semantic Versioning.
 ### Added
 - Describe upcoming changes here.
 
-## [1.0.0] - 2026-03-11
+## [2.0.0] - 2026-03-11
 
 ### Added
-- Initial FastAPI release baseline for the Co-Stars backend.
+- Version 2.0.0 baseline for the Co-Stars backend.
 - Actor and movie catalog endpoints with raw popularity data.
 - Path generation, validation, and normalization endpoints.
-- Standalone API tests, path utility tests, smoke tests, and aggregate test runner support.
-- GitHub Actions CI workflow for build, unit, and smoke-test jobs.
+- Frontend snapshot export and manifest endpoints for frontend-local gameplay.
+- Standalone API tests, data lookup tests, path utility tests, smoke tests, and aggregate test runner support.
+- GitHub Actions CI workflow for build and unit-focused test jobs.
