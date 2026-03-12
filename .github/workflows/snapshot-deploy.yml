@@ -32,7 +32,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: snapshot-deploy-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: snapshot-deploy-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -109,6 +109,61 @@ jobs:
             --manifest-output dist/frontend-manifest.json \
             --snapshot-endpoint "${{ steps.target.outputs.snapshot_url }}"
 
+      - name: Show exported files
+        shell: bash
+        run: |
+          echo "Exported files:"
+          ls -lah dist
+          echo
+          echo "Manifest preview:"
+          sed -n '1,80p' dist/frontend-manifest.json
+
+      - name: Validate deploy prerequisites
+        id: validate
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUBLISH_TO_S3: ${{ inputs.publish_to_s3 }}
+          AWS_REGION_VALUE: ${{ vars.AWS_REGION }}
+          AWS_ROLE_ARN_VALUE: ${{ vars.AWS_ROLE_ARN }}
+          SNAPSHOT_BUCKET_VALUE: ${{ vars.SNAPSHOT_S3_BUCKET }}
+          CLOUDFRONT_DISTRIBUTION_VALUE: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+        run: |
+          set -euo pipefail
+
+          should_publish=true
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$PUBLISH_TO_S3" != "true" ]; then
+            should_publish=false
+          fi
+
+          missing=()
+          if [ "$should_publish" = "true" ]; then
+            [ -n "$AWS_REGION_VALUE" ] || missing+=("AWS_REGION")
+            [ -n "$AWS_ROLE_ARN_VALUE" ] || missing+=("AWS_ROLE_ARN")
+            [ -n "$SNAPSHOT_BUCKET_VALUE" ] || missing+=("SNAPSHOT_S3_BUCKET")
+          fi
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            echo "missing_vars=$(IFS=,; echo "${missing[*]}")" >> "$GITHUB_OUTPUT"
+            echo "Missing required GitHub Actions variables for AWS publish: ${missing[*]}"
+            exit 1
+          fi
+
+          echo "should_publish=$should_publish" >> "$GITHUB_OUTPUT"
+          echo "missing_vars=" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Snapshot Diagnostics"
+            echo
+            echo "- Event: $EVENT_NAME"
+            echo "- Publish requested: $should_publish"
+            echo "- AWS_REGION set: $([ -n "$AWS_REGION_VALUE" ] && echo yes || echo no)"
+            echo "- AWS_ROLE_ARN set: $([ -n "$AWS_ROLE_ARN_VALUE" ] && echo yes || echo no)"
+            echo "- SNAPSHOT_S3_BUCKET set: $([ -n "$SNAPSHOT_BUCKET_VALUE" ] && echo yes || echo no)"
+            echo "- CLOUDFRONT_DISTRIBUTION_ID set: $([ -n "$CLOUDFRONT_DISTRIBUTION_VALUE" ] && echo yes || echo no)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload snapshot artifact
         uses: actions/upload-artifact@v4
         with:
@@ -120,45 +175,56 @@ jobs:
 
       - name: Configure AWS credentials
         if: |
-          (github.event_name != 'workflow_dispatch' || inputs.publish_to_s3) &&
-          vars.AWS_ROLE_ARN != '' &&
-          vars.AWS_REGION != '' &&
-          vars.SNAPSHOT_S3_BUCKET != '' &&
-          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+          steps.validate.outputs.should_publish == 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
+      - name: Show AWS caller identity
+        if: |
+          steps.validate.outputs.should_publish == 'true'
+        shell: bash
+        run: aws sts get-caller-identity
+
       - name: Publish static assets to S3
         if: |
-          (github.event_name != 'workflow_dispatch' || inputs.publish_to_s3) &&
-          vars.AWS_ROLE_ARN != '' &&
-          vars.AWS_REGION != '' &&
-          vars.SNAPSHOT_S3_BUCKET != '' &&
-          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+          steps.validate.outputs.should_publish == 'true'
         shell: bash
         env:
           BUCKET: ${{ vars.SNAPSHOT_S3_BUCKET }}
           DEPLOY_PREFIX: ${{ steps.target.outputs.deploy_prefix }}
         run: |
+          set -euo pipefail
+
+          echo "Publishing snapshot to s3://$BUCKET/$DEPLOY_PREFIX/frontend-snapshot.json"
           aws s3 cp dist/frontend-snapshot.json "s3://$BUCKET/$DEPLOY_PREFIX/frontend-snapshot.json" \
             --content-type application/json \
             --cache-control public, max-age=300
 
+          echo "Publishing manifest to s3://$BUCKET/$DEPLOY_PREFIX/frontend-manifest.json"
           aws s3 cp dist/frontend-manifest.json "s3://$BUCKET/$DEPLOY_PREFIX/frontend-manifest.json" \
             --content-type application/json \
             --cache-control no-cache, no-store, must-revalidate
 
+      - name: Verify S3 objects
+        if: |
+          steps.validate.outputs.should_publish == 'true'
+        shell: bash
+        env:
+          BUCKET: ${{ vars.SNAPSHOT_S3_BUCKET }}
+          DEPLOY_PREFIX: ${{ steps.target.outputs.deploy_prefix }}
+        run: |
+          aws s3 ls "s3://$BUCKET/$DEPLOY_PREFIX/"
+
       - name: Invalidate CloudFront cache
         if: |
-          (github.event_name != 'workflow_dispatch' || inputs.publish_to_s3) &&
+          steps.validate.outputs.should_publish == 'true' &&
           (github.event_name != 'workflow_dispatch' || inputs.invalidate_cloudfront) &&
           vars.CLOUDFRONT_DISTRIBUTION_ID != '' &&
           vars.AWS_ROLE_ARN != '' &&
           vars.AWS_REGION != '' &&
-          vars.SNAPSHOT_S3_BUCKET != '' &&
-          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+          vars.SNAPSHOT_S3_BUCKET != ''
         shell: bash
         env:
           DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
