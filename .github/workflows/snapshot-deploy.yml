@@ -130,7 +130,9 @@ jobs:
           AWS_REGION_VALUE: ${{ vars.AWS_REGION }}
           AWS_ROLE_ARN_VALUE: ${{ vars.AWS_ROLE_ARN }}
           SNAPSHOT_BUCKET_VALUE: ${{ vars.SNAPSHOT_S3_BUCKET }}
+          AWS_BUCKET_VALUE: ${{ vars.AWS_S3_BUCKET }}
           CLOUDFRONT_DISTRIBUTION_VALUE: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+          AWS_CLOUDFRONT_DISTRIBUTION_VALUE: ${{ vars.AWS_CLOUDFRONT_DISTRIBUTION_ID }}
         run: |
           set -euo pipefail
 
@@ -139,11 +141,21 @@ jobs:
             should_publish=false
           fi
 
+          bucket_value="$SNAPSHOT_BUCKET_VALUE"
+          if [ -z "$bucket_value" ]; then
+            bucket_value="$AWS_BUCKET_VALUE"
+          fi
+
+          distribution_value="$CLOUDFRONT_DISTRIBUTION_VALUE"
+          if [ -z "$distribution_value" ]; then
+            distribution_value="$AWS_CLOUDFRONT_DISTRIBUTION_VALUE"
+          fi
+
           missing=()
           if [ "$should_publish" = "true" ]; then
             [ -n "$AWS_REGION_VALUE" ] || missing+=("AWS_REGION")
             [ -n "$AWS_ROLE_ARN_VALUE" ] || missing+=("AWS_ROLE_ARN")
-            [ -n "$SNAPSHOT_BUCKET_VALUE" ] || missing+=("SNAPSHOT_S3_BUCKET")
+            [ -n "$bucket_value" ] || missing+=("SNAPSHOT_S3_BUCKET or AWS_S3_BUCKET")
           fi
 
           if [ ${#missing[@]} -gt 0 ]; then
@@ -155,6 +167,8 @@ jobs:
 
           echo "should_publish=$should_publish" >> "$GITHUB_OUTPUT"
           echo "missing_vars=" >> "$GITHUB_OUTPUT"
+          echo "bucket_value=$bucket_value" >> "$GITHUB_OUTPUT"
+          echo "distribution_value=$distribution_value" >> "$GITHUB_OUTPUT"
 
           {
             echo "## Snapshot Diagnostics"
@@ -164,7 +178,11 @@ jobs:
             echo "- AWS_REGION set: $([ -n "$AWS_REGION_VALUE" ] && echo yes || echo no)"
             echo "- AWS_ROLE_ARN set: $([ -n "$AWS_ROLE_ARN_VALUE" ] && echo yes || echo no)"
             echo "- SNAPSHOT_S3_BUCKET set: $([ -n "$SNAPSHOT_BUCKET_VALUE" ] && echo yes || echo no)"
+            echo "- AWS_S3_BUCKET set: $([ -n "$AWS_BUCKET_VALUE" ] && echo yes || echo no)"
+            echo "- Effective bucket: $([ -n "$bucket_value" ] && echo "$bucket_value" || echo '<missing>')"
             echo "- CLOUDFRONT_DISTRIBUTION_ID set: $([ -n "$CLOUDFRONT_DISTRIBUTION_VALUE" ] && echo yes || echo no)"
+            echo "- AWS_CLOUDFRONT_DISTRIBUTION_ID set: $([ -n "$AWS_CLOUDFRONT_DISTRIBUTION_VALUE" ] && echo yes || echo no)"
+            echo "- Effective distribution ID: $([ -n "$distribution_value" ] && echo "$distribution_value" || echo '<not configured>')"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload snapshot artifact
@@ -195,7 +213,7 @@ jobs:
           steps.validate.outputs.should_publish == 'true'
         shell: bash
         env:
-          BUCKET: ${{ vars.SNAPSHOT_S3_BUCKET }}
+          BUCKET: ${{ steps.validate.outputs.bucket_value }}
           DEPLOY_PREFIX: ${{ steps.target.outputs.deploy_prefix }}
         run: |
           set -euo pipefail
@@ -215,7 +233,7 @@ jobs:
           steps.validate.outputs.should_publish == 'true'
         shell: bash
         env:
-          BUCKET: ${{ vars.SNAPSHOT_S3_BUCKET }}
+          BUCKET: ${{ steps.validate.outputs.bucket_value }}
           DEPLOY_PREFIX: ${{ steps.target.outputs.deploy_prefix }}
         run: |
           aws s3 ls "s3://$BUCKET/$DEPLOY_PREFIX/"
@@ -224,13 +242,12 @@ jobs:
         if: |
           steps.validate.outputs.should_publish == 'true' &&
           (github.event_name != 'workflow_dispatch' || inputs.invalidate_cloudfront) &&
-          vars.CLOUDFRONT_DISTRIBUTION_ID != '' &&
           vars.AWS_ROLE_ARN != '' &&
           vars.AWS_REGION != '' &&
-          vars.SNAPSHOT_S3_BUCKET != ''
+          steps.validate.outputs.distribution_value != ''
         shell: bash
         env:
-          DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+          DISTRIBUTION_ID: ${{ steps.validate.outputs.distribution_value }}
           DEPLOY_PREFIX: ${{ steps.target.outputs.deploy_prefix }}
         run: |
           aws cloudfront create-invalidation \
@@ -251,7 +268,7 @@ jobs:
               echo "- Publish to S3: ${{ inputs.publish_to_s3 }}"
               echo "- Invalidate CloudFront: ${{ inputs.invalidate_cloudfront }}"
             fi
-            echo "- S3 prefix: s3://${{ vars.SNAPSHOT_S3_BUCKET }}/${{ steps.target.outputs.deploy_prefix }}"
+            echo "- S3 prefix: s3://${{ steps.validate.outputs.bucket_value }}/${{ steps.target.outputs.deploy_prefix }}"
             if [ "${{ steps.target.outputs.manifest_url }}" != "frontend-manifest.json" ]; then
               echo "- Manifest URL: ${{ steps.target.outputs.manifest_url }}"
               echo "- Snapshot URL: ${{ steps.target.outputs.snapshot_url }}"

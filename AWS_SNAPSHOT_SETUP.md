@@ -185,12 +185,12 @@ Create these repository variables:
 
 - `AWS_REGION`
 - `AWS_ROLE_ARN`
-- `SNAPSHOT_S3_BUCKET`
+- `SNAPSHOT_S3_BUCKET` or `AWS_S3_BUCKET`
 
 Recommended:
 
 - `SNAPSHOT_MAIN_PREFIX`
-- `CLOUDFRONT_DISTRIBUTION_ID`
+- `CLOUDFRONT_DISTRIBUTION_ID` or `AWS_CLOUDFRONT_DISTRIBUTION_ID`
 - `SNAPSHOT_BASE_URL`
 
 Suggested values:
@@ -203,6 +203,11 @@ SNAPSHOT_MAIN_PREFIX=co-stars/prod
 CLOUDFRONT_DISTRIBUTION_ID=E123ABC456XYZ
 SNAPSHOT_BASE_URL=https://d111111abcdef8.cloudfront.net
 ```
+
+If you already have frontend deployment variables, the workflow can now reuse these existing names as fallbacks:
+
+- `AWS_S3_BUCKET`
+- `AWS_CLOUDFRONT_DISTRIBUTION_ID`
 
 ## Step 7: Commit And Push The Backend Changes
 
