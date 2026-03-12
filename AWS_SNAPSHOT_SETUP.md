@@ -2,7 +2,7 @@
 
 This guide covers the one-time AWS and GitHub setup needed to publish `frontend-manifest.json` and `frontend-snapshot.json` to S3 from GitHub Actions.
 
-It assumes you already have the snapshot workflow in `.github/workflows/snapshot-deploy.yml` and that you want pull requests and `main` to publish to the same S3 location.
+It assumes you already have the snapshot workflow in `.github/workflows/snapshot-deploy.yml` and that you want to publish snapshot files on demand from the GitHub Actions tab.
 
 ## What Gets Deployed
 
@@ -208,21 +208,11 @@ SNAPSHOT_BASE_URL=https://d111111abcdef8.cloudfront.net
 
 Commit the snapshot workflow and docs to your branch and push them to GitHub.
 
-The workflow can run on:
-
-- pull requests
-- pushes to `main`
-- manual `workflow_dispatch`
+The workflow runs manually through `workflow_dispatch` only.
 
 ## Step 8: Trigger The First Deployment
 
-You have three ways to trigger it:
-
-1. Open or update a pull request from a branch in the same repository.
-2. Merge to `main`.
-3. Run the `Snapshot Deploy` workflow manually from the Actions tab.
-
-For the first test, a same-repo pull request is a good choice because it exercises the full AWS path before merge.
+Run the `Snapshot Deploy` workflow manually from the Actions tab.
 
 ### Manual Workflow Inputs
 
@@ -387,6 +377,6 @@ Check:
 
 ### Pull request run does not deploy
 
-The workflow intentionally skips AWS deploys for forked pull requests.
+This workflow no longer runs automatically on pull requests.
 
-For the first test, use a branch in the same repository.
+Use the manual Actions-tab run instead.
