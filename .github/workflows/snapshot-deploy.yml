@@ -1,6 +1,9 @@
 name: Snapshot Deploy
 
 on:
+  push:
+    branches:
+      - '**'
   workflow_dispatch:
     inputs:
       git_ref:
