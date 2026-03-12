@@ -1,5 +1,262 @@
 # Co-Stars Backend API Endpoints
 
+This backend exposes a REST API for actor and movie graph traversal. The API returns raw data, optional shortest-path hints, and a full snapshot export so the frontend can decide whether to query incrementally or keep the graph locally.
+
+## Base URL
+
+```text
+http://localhost:8000
+```
+
+## Copy/Paste URLs
+
+```text
+http://localhost:8000/docs
+http://localhost:8000/api/health
+http://localhost:8000/api/export/frontend-manifest
+http://localhost:8000/api/levels
+http://localhost:8000/api/actors
+http://localhost:8000/api/movies
+http://localhost:8000/api/export/frontend-snapshot
+http://localhost:8000/api/actor/Matt%20Damon
+http://localhost:8000/api/actor/1461/movies?target_type=actor&target_id=1892
+http://localhost:8000/api/movie/161/costars?exclude=George%20Clooney&target_type=actor&target_id=1892
+```
+
+## 1. Health Check
+
+- Endpoint: `GET /api/health`
+- Description: Confirms the API is up and returns the deployed app version.
+
+```http
+GET http://localhost:8000/api/health
+```
+
+## 2. Get Frontend Manifest
+
+- Endpoint: `GET /api/export/frontend-manifest`
+- Description: Returns lightweight refresh metadata so a frontend can decide whether it needs a new snapshot.
+
+```http
+GET http://localhost:8000/api/export/frontend-manifest
+```
+
+## 3. Get All Levels
+
+- Endpoint: `GET /api/levels`
+- Description: Returns predefined challenge levels.
+
+```http
+GET http://localhost:8000/api/levels
+```
+
+## 4. Get All Actors
+
+- Endpoint: `GET /api/actors`
+- Description: Returns every actor in the database with all actor attributes.
+
+```http
+GET http://localhost:8000/api/actors
+```
+
+## 5. Get All Movies
+
+- Endpoint: `GET /api/movies`
+- Description: Returns every movie in the database with all movie attributes.
+
+```http
+GET http://localhost:8000/api/movies
+```
+
+## 6. Export Frontend Snapshot
+
+- Endpoint: `GET /api/export/frontend-snapshot`
+- Description: Returns the full actor/movie graph, adjacency maps, and challenge levels in a single payload designed for frontend-local gameplay.
+- Best use case: fetch once, cache locally, and refresh on a schedule such as weekly.
+
+```http
+GET http://localhost:8000/api/export/frontend-snapshot
+```
+
+- Response shape:
+
+```json
+{
+  "meta": {
+    "version": "1.0.0",
+    "exported_at": "2026-03-11T00:00:00+00:00",
+    "actor_count": 2,
+    "movie_count": 1,
+    "relationship_count": 2,
+    "level_count": 1
+  },
+  "actors": [
+    { "id": 1461, "name": "George Clooney", "popularity": 33.1 },
+    { "id": 1892, "name": "Matt Damon", "popularity": 51.25 }
+  ],
+  "movies": [
+    { "id": 161, "title": "Ocean's Eleven", "release_date": "2001-12-07" }
+  ],
+  "movie_actors": [
+    { "movie_id": 161, "actor_id": 1461 },
+    { "movie_id": 161, "actor_id": 1892 }
+  ],
+  "adjacency": {
+    "actor_to_movies": { "1461": [161], "1892": [161] },
+    "movie_to_actors": { "161": [1461, 1892] }
+  },
+  "levels": [
+    { "actor_a": "Matt Damon", "actor_b": "George Clooney", "stars": 3 }
+  ]
+}
+```
+
+## 7. Get Actor By Name
+
+- Endpoint: `GET /api/actor/<name>`
+- Description: Resolves an actor name to a database actor record.
+
+```http
+GET http://localhost:8000/api/actor/Matt%20Damon
+```
+
+## 8. Get Movies For Actor
+
+- Endpoint: `GET /api/actor/<actor_id>/movies`
+- Description: Returns all movies for the actor. If `target_type` and `target_id` are provided, each movie also includes a shortest-path hint from that movie to the target node.
+- Query params:
+  - `target_type=actor|movie`
+  - `target_id=<id>`
+
+```http
+GET http://localhost:8000/api/actor/1461/movies?target_type=actor&target_id=1892
+```
+
+## 9. Get Actors For Movie
+
+- Endpoint: `GET /api/movie/<movie_id>/costars`
+- Description: Returns all actors in the movie. If `target_type` and `target_id` are provided, each actor also includes a shortest-path hint from that actor to the target node.
+- Query params:
+  - `exclude=Name1&exclude=Name2`
+  - `target_type=actor|movie`
+  - `target_id=<id>`
+
+```http
+GET http://localhost:8000/api/movie/161/costars?exclude=George%20Clooney&target_type=actor&target_id=1892
+```
+
+## 10. Validate Path
+
+- Endpoint: `POST /api/path/validate`
+- Description: Validates a path of alternating actor and movie names.
+
+```http
+POST http://localhost:8000/api/path/validate
+Content-Type: application/json
+```
+
+## 11. Generate Path
+
+- Endpoint: `POST /api/path/generate`
+- Description: Generates a shortest path between any two named nodes.
+
+```http
+POST http://localhost:8000/api/path/generate
+Content-Type: application/json
+```
+
+## Notes
+
+- Popularity is returned as raw data only. The frontend decides how to use it.
+- Suggestion endpoints return full raw lists. The frontend decides whether to show all options, a subset, random options, or ranked options.
+- Optional `path_hint` metadata lets the backend expose the optimal path to the target for each returned option, including immediate matches where `steps_to_target` is `0`.
+- The `/api/export/frontend-snapshot` endpoint is the lowest-call integration path if you want the frontend to own the graph and run game logic locally.
+    "movie_count": 1,
+    "relationship_count": 2,
+    "level_count": 1
+  },
+  "actors": [
+    { "id": 1461, "name": "George Clooney", "popularity": 33.1 },
+    { "id": 1892, "name": "Matt Damon", "popularity": 51.25 }
+  ],
+  "movies": [
+    { "id": 161, "title": "Ocean's Eleven", "release_date": "2001-12-07" }
+  ],
+  "movie_actors": [
+    { "movie_id": 161, "actor_id": 1461 },
+    { "movie_id": 161, "actor_id": 1892 }
+  ],
+  "adjacency": {
+    "actor_to_movies": { "1461": [161], "1892": [161] },
+    "movie_to_actors": { "161": [1461, 1892] }
+  },
+  "levels": [
+    { "actor_a": "Matt Damon", "actor_b": "George Clooney", "stars": 3 }
+  ]
+}
+```
+
+## 7. Get Actor By Name
+
+- Endpoint: `GET /api/actor/<name>`
+- Description: Resolves an actor name to a database actor record.
+
+```http
+GET http://localhost:8000/api/actor/Matt%20Damon
+```
+
+## 8. Get Movies For Actor
+
+- Endpoint: `GET /api/actor/<actor_id>/movies`
+- Description: Returns all movies for the actor. If `target_type` and `target_id` are provided, each movie also includes a shortest-path hint from that movie to the target node.
+- Query params:
+  - `target_type=actor|movie`
+  - `target_id=<id>`
+
+```http
+GET http://localhost:8000/api/actor/1461/movies?target_type=actor&target_id=1892
+```
+
+## 9. Get Actors For Movie
+
+- Endpoint: `GET /api/movie/<movie_id>/costars`
+- Description: Returns all actors in the movie. If `target_type` and `target_id` are provided, each actor also includes a shortest-path hint from that actor to the target node.
+- Query params:
+  - `exclude=Name1&exclude=Name2`
+  - `target_type=actor|movie`
+  - `target_id=<id>`
+
+```http
+GET http://localhost:8000/api/movie/161/costars?exclude=George%20Clooney&target_type=actor&target_id=1892
+```
+
+## 10. Validate Path
+
+- Endpoint: `POST /api/path/validate`
+- Description: Validates a path of alternating actor and movie names.
+
+```http
+POST http://localhost:8000/api/path/validate
+Content-Type: application/json
+```
+
+## 11. Generate Path
+
+- Endpoint: `POST /api/path/generate`
+- Description: Generates a shortest path between any two named nodes.
+
+```http
+POST http://localhost:8000/api/path/generate
+Content-Type: application/json
+```
+
+## Notes
+
+- Popularity is returned as raw data only. The frontend decides how to use it.
+- Suggestion endpoints return full raw lists. The frontend decides whether to show all options, a subset, random options, or ranked options.
+- Optional `path_hint` metadata lets the backend expose the optimal path to the target for each returned option, including immediate matches where `steps_to_target` is `0`.
+- The `/api/export/frontend-snapshot` endpoint is the lowest-call integration path if you want the frontend to own the graph and run game logic locally.# Co-Stars Backend API Endpoints
+
 This backend exposes a REST API for actor and movie graph traversal. The API returns raw data and optional shortest-path hints so the frontend can decide how to display suggestions, popularity, and optimal routes.
 
 ## Base URL

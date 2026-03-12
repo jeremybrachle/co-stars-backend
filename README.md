@@ -42,8 +42,11 @@ http://localhost:8000/api/movies
 ## API Endpoints
 
 - `GET /api/levels` — List all challenge levels (actor pairs)
+- `GET /api/health` — Basic deployment/liveness check
+- `GET /api/export/frontend-manifest` — Lightweight refresh metadata for frontend sync
 - `GET /api/actors` — List the full actor catalog with all actor attributes
 - `GET /api/movies` — List the full movie catalog with all movie attributes
+- `GET /api/export/frontend-snapshot` — Export the full graph for frontend-local gameplay
 - `GET /api/actor/{name}` — Get actor details by name, including popularity
 - `GET /api/actor/{actor_id}/movies` — List all movies for an actor, with optional target-aware path hints
 - `GET /api/movie/{movie_id}/costars` — List all actors in a movie, with optional target-aware path hints
@@ -53,6 +56,12 @@ http://localhost:8000/api/movies
 See `/docs` for full interactive documentation and sample payloads.
 
 For frontend integration details, including exact localhost URLs and how to build open-ended game flows in a React client, see `FRONTEND_VERSUS_INTEGRATION.md`.
+
+For frontend-local data sync and snapshot-based integration that avoids gameplay API calls, see `FRONTEND_DATA_SYNC.md`.
+
+For a single shareable handoff file intended for the consuming frontend project's agent, see `FRONTEND_AGENT_HANDOFF.md`.
+
+For deployment steps and the minimal frontend-facing production endpoints, see `DEPLOYMENT.md`.
 
 ### Open-Ended Suggestion API
 
@@ -275,4 +284,5 @@ See `RELEASING.md` for the full release workflow.
 - The backend is now FastAPI-only. All Flask and template files have been removed.
 - All endpoints are documented and testable at `/docs` (Swagger UI).
 - For database setup and ingestion, see the usage section above.
+- Long term, the backend can be reduced to TMDB ingestion, root data maintenance, and snapshot export while gameplay logic moves client-side.
 

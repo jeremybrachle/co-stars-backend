@@ -1,7 +1,10 @@
 from enum import Enum
+import os
 from fastapi import FastAPI, HTTPException, Query, Body, Path
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from dotenv import load_dotenv
 from typing import List, Optional
 from versus_game import (
     get_actor_by_name as vg_get_actor_by_name,
@@ -24,13 +27,32 @@ from db_helper import (
     get_movies_for_actor as db_get_movies_for_actor,
     movie_exists,
 )
+from frontend_snapshot import build_frontend_manifest, build_frontend_snapshot
 from project_version import get_project_version
 import json
+
+load_dotenv()
+
+
+def get_allowed_origins():
+    raw_origins = os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173",
+    )
+    return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
 
 app = FastAPI(
     title="Co-Stars API",
     description="A FastAPI backend for actor/movie game. All endpoints are documented and testable via the Swagger UI.",
     version=get_project_version(),
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_allowed_origins(),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 LEVELS_EXAMPLE = [
@@ -66,6 +88,49 @@ MOVIES_EXAMPLE = [
         "release_date": "2006-10-04",
     },
 ]
+
+FRONTEND_SNAPSHOT_EXAMPLE = {
+    "meta": {
+        "version": "1.0.0",
+        "exported_at": "2026-03-11T00:00:00+00:00",
+        "actor_count": 2,
+        "movie_count": 1,
+        "relationship_count": 2,
+        "level_count": 1,
+    },
+    "actors": ACTORS_EXAMPLE,
+    "movies": [MOVIES_EXAMPLE[0]],
+    "movie_actors": [
+        {"movie_id": 161, "actor_id": 1461},
+        {"movie_id": 161, "actor_id": 1892},
+    ],
+    "adjacency": {
+        "actor_to_movies": {
+            "1461": [161],
+            "1892": [161],
+        },
+        "movie_to_actors": {
+            "161": [1461, 1892],
+        },
+    },
+    "levels": LEVELS_EXAMPLE,
+}
+
+FRONTEND_MANIFEST_EXAMPLE = {
+    "version": "1.0.0",
+    "source_updated_at": "2026-03-11T00:00:00+00:00",
+    "actor_count": 2,
+    "movie_count": 1,
+    "relationship_count": 2,
+    "level_count": 1,
+    "recommended_refresh_interval_hours": 168,
+    "snapshot_endpoint": "/api/export/frontend-snapshot",
+}
+
+HEALTH_EXAMPLE = {
+    "status": "ok",
+    "version": "1.0.0",
+}
 
 MOVIE_SUGGESTIONS_EXAMPLE = [
     {
@@ -304,6 +369,50 @@ class Movie(BaseModel):
 class MovieSuggestion(Movie):
     path_hint: Optional[PathHint] = None
 
+
+class MovieActorLink(BaseModel):
+    movie_id: int
+    actor_id: int
+
+
+class FrontendSnapshotMeta(BaseModel):
+    version: str
+    exported_at: str
+    actor_count: int
+    movie_count: int
+    relationship_count: int
+    level_count: int
+
+
+class FrontendAdjacency(BaseModel):
+    actor_to_movies: dict[str, List[int]] = Field(default_factory=dict)
+    movie_to_actors: dict[str, List[int]] = Field(default_factory=dict)
+
+
+class FrontendSnapshot(BaseModel):
+    meta: FrontendSnapshotMeta
+    actors: List[Actor]
+    movies: List[Movie]
+    movie_actors: List[MovieActorLink]
+    adjacency: FrontendAdjacency
+    levels: List[Level]
+
+
+class FrontendManifest(BaseModel):
+    version: str
+    source_updated_at: str
+    actor_count: int
+    movie_count: int
+    relationship_count: int
+    level_count: int
+    recommended_refresh_interval_hours: int
+    snapshot_endpoint: str
+
+
+class HealthResponse(BaseModel):
+    status: str
+    version: str
+
 class PathValidateRequest(BaseModel):
     start_type: NodeType = NodeType.actor
     path: List[str]
@@ -372,6 +481,22 @@ def serialize_movie_rows(movie_rows, target_node=None):
 
 # --- Endpoints ---
 @app.get(
+    "/api/health",
+    response_model=HealthResponse,
+    summary="Health check",
+    tags=["System"],
+    responses={
+        200: {
+            "description": "Basic API liveness response.",
+            "content": {"application/json": {"example": HEALTH_EXAMPLE}},
+        }
+    },
+)
+def health_check():
+    return {"status": "ok", "version": get_project_version()}
+
+
+@app.get(
     "/api/levels",
     response_model=List[Level],
     summary="Get all levels",
@@ -420,6 +545,47 @@ def get_actors():
 def get_movies():
     """Returns every movie in the database with all movie attributes."""
     return serialize_movie_rows(get_all_movies())
+
+
+@app.get(
+    "/api/export/frontend-manifest",
+    response_model=FrontendManifest,
+    summary="Get lightweight frontend refresh metadata",
+    tags=["Export"],
+    responses={
+        200: {
+            "description": "Snapshot freshness metadata for frontend refresh checks.",
+            "content": {"application/json": {"example": FRONTEND_MANIFEST_EXAMPLE}},
+        }
+    },
+)
+def export_frontend_manifest():
+    """Returns cheap metadata the frontend can check before pulling the full snapshot.
+
+    TODO(frontend-refactor): Use this endpoint as the default freshness check before downloading a new snapshot.
+    """
+    return build_frontend_manifest(LEVELS)
+
+
+@app.get(
+    "/api/export/frontend-snapshot",
+    response_model=FrontendSnapshot,
+    summary="Export the full graph for frontend-local gameplay",
+    tags=["Export"],
+    responses={
+        200: {
+            "description": "Full actor/movie graph plus adjacency lists for frontend-local state.",
+            "content": {"application/json": {"example": FRONTEND_SNAPSHOT_EXAMPLE}},
+        }
+    },
+)
+def export_frontend_snapshot():
+    """Returns a complete snapshot the frontend can cache and query locally.
+
+    TODO(frontend-refactor): Make this export contract the long-term frontend sync surface.
+    TODO(frontend-refactor): Move legacy gameplay-specific lookup endpoints behind a compatibility namespace once the frontend owns graph traversal.
+    """
+    return build_frontend_snapshot(LEVELS)
 
 @app.get(
     "/api/actor/{name}",
@@ -548,6 +714,7 @@ def validate_path(
     if not req.path or not isinstance(req.path, list):
         return {"valid": False, "message": "Missing or invalid path"}
     valid = validate_named_path(req.path, start_type=req.start_type.value)
+    # TODO(frontend-refactor): Move normal gameplay path validation to the frontend once the graph is cached client-side.
     # Always omit 'message' if None or missing
     def strip_message_none(obj):
         if isinstance(obj, tuple):

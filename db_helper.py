@@ -83,6 +83,21 @@ def get_all_movies():
     return result
 
 
+def get_all_movie_actor_links():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT movie_id, actor_id
+        FROM movie_actors
+        ORDER BY movie_id ASC, actor_id ASC
+        """
+    )
+    result = cursor.fetchall()
+    conn.close()
+    return result
+
+
 def get_actors_in_movie(movie_id, exclude_names=None):
     conn = get_connection()
     cursor = conn.cursor()

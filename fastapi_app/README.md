@@ -27,6 +27,9 @@ Copy/paste URLs:
 ```text
 http://localhost:8000
 http://localhost:8000/docs
+http://localhost:8000/api/health
+http://localhost:8000/api/export/frontend-manifest
+http://localhost:8000/api/export/frontend-snapshot
 http://localhost:8000/api/levels
 http://localhost:8000/api/actors
 http://localhost:8000/api/movies
@@ -35,8 +38,11 @@ http://localhost:8000/api/movies
 ## Endpoints
 
 - `/api/levels` — Get all levels (from levels.json)
+- `/api/health` — Basic deployment/liveness check
+- `/api/export/frontend-manifest` — Lightweight refresh metadata for frontend sync
 - `/api/actors` — Get the full actor catalog
 - `/api/movies` — Get the full movie catalog
+- `/api/export/frontend-snapshot` — Export the full graph for frontend-local gameplay
 - `/api/actor/{name}` — Get actor by name, including `popularity` (from DB)
 - `/api/actor/{actor_id}/movies` — Get all movies for an actor, optionally with shortest-path hint metadata
 - `/api/movie/{movie_id}/costars` — Get all actors in a movie, optionally with shortest-path hint metadata
@@ -57,8 +63,11 @@ This makes it possible to build classic play, hint-assisted play, quick play, an
 
 All endpoints are powered by your SQLite database and helper functions. Sample payloads and schemas are visible in the Swagger UI.
 
+If you want the consuming frontend to own the graph and avoid normal gameplay API calls, use the snapshot export flow documented in `FRONTEND_DATA_SYNC.md`.
+
 ## Notes
 - The Flask implementation and all template files have been removed. This project is now FastAPI-only.
 - You can visually explore and test all endpoints at `/docs`.
 - For database setup and ingestion, see the main project README.
 - For release versioning and changelog workflow, see `RELEASING.md` in the project root.
+- Long term, the backend can be simplified toward TMDB sync plus graph export while path and move logic shifts into the consuming frontend.
