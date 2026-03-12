@@ -101,7 +101,7 @@ def build_frontend_snapshot(levels):
     }
 
 
-def build_frontend_manifest(levels):
+def build_frontend_manifest(levels, snapshot_endpoint="/api/export/frontend-snapshot"):
     actor_rows = get_all_actors()
     movie_rows = get_all_movies()
     link_rows = get_all_movie_actor_links()
@@ -114,5 +114,5 @@ def build_frontend_manifest(levels):
         "relationship_count": len(link_rows),
         "level_count": len(levels),
         "recommended_refresh_interval_hours": 168,
-        "snapshot_endpoint": "/api/export/frontend-snapshot",
+        "snapshot_endpoint": snapshot_endpoint,
     }

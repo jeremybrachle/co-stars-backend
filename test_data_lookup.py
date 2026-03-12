@@ -176,6 +176,35 @@ class TestFrontendSnapshotBuilders(unittest.TestCase):
         mock_get_source_updated_at.assert_called_once()
         mock_get_project_version.assert_called_once()
 
+    @patch("frontend_snapshot._get_source_updated_at", return_value="2026-03-11T00:00:00+00:00")
+    @patch("frontend_snapshot.get_project_version", return_value="2.0.0")
+    @patch("frontend_snapshot.get_all_movie_actor_links")
+    @patch("frontend_snapshot.get_all_movies")
+    @patch("frontend_snapshot.get_all_actors")
+    def test_build_frontend_manifest_accepts_static_snapshot_endpoint(
+        self,
+        mock_get_all_actors,
+        mock_get_all_movies,
+        mock_get_all_links,
+        mock_get_project_version,
+        mock_get_source_updated_at,
+    ):
+        mock_get_all_actors.return_value = [(1461, "George Clooney", 33.1)]
+        mock_get_all_movies.return_value = [(161, "Ocean's Eleven", "2001-12-07")]
+        mock_get_all_links.return_value = [(161, 1461)]
+
+        manifest = build_frontend_manifest(
+            [{"actor_a": "George Clooney", "actor_b": "Matt Damon", "stars": 3}],
+            snapshot_endpoint="https://cdn.example.com/co-stars/frontend-snapshot.json",
+        )
+
+        self.assertEqual(
+            manifest["snapshot_endpoint"],
+            "https://cdn.example.com/co-stars/frontend-snapshot.json",
+        )
+        mock_get_source_updated_at.assert_called_once()
+        mock_get_project_version.assert_called_once()
+
 
 if __name__ == "__main__":
     suite = unittest.defaultTestLoader.loadTestsFromModule(__import__(__name__))

@@ -63,6 +63,8 @@ For a single shareable handoff file intended for the consuming frontend project'
 
 For deployment steps and the minimal frontend-facing production endpoints, see `DEPLOYMENT.md`.
 
+For static JSON export and GitHub Actions publishing to S3/CloudFront, see `S3_SNAPSHOT_DEPLOYMENT.md`.
+
 ### Open-Ended Suggestion API
 
 The API is now intentionally open-ended:
@@ -261,6 +263,8 @@ This repository now tracks releases with a root-level `VERSION` file and `CHANGE
 ## GitHub Actions CI
 
 The repository now includes a GitHub Actions workflow in `.github/workflows/ci.yml`.
+
+The repository also includes `.github/workflows/snapshot-deploy.yml` for exporting frontend snapshot assets and publishing them to S3 from pull requests and from `main`.
 
 - It runs on pushes to `main`.
 - It runs on pushes to branches.
