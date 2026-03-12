@@ -9,7 +9,7 @@ This project now uses a simple release workflow built around three files:
 
 ## Current Baseline
 
-- Initial stable baseline: `1.0.0`
+- Initial stable baseline: `2.0.0`
 - Release date: `2026-03-11`
 
 ## Versioning Rules
@@ -38,21 +38,21 @@ python3 bump_version.py 1.2.3
 6. Tag the release in git to trigger the GitHub Release workflow:
 
 ```bash
-git tag v1.0.1
-git push origin v1.0.1
+git tag v2.0.0
+git push origin v2.0.0
 ```
 
 7. GitHub Actions will then:
 
 - verify that the pushed tag matches the value in `VERSION`
-- extract the `## [1.0.1]` section from `CHANGELOG.md`
-- publish a GitHub Release named `v1.0.1` with those exact notes
+- extract the `## [2.0.0]` section from `CHANGELOG.md`
+- publish a GitHub Release named `v2.0.0` with those exact notes
 
 This keeps the git tag, the GitHub Release version, the API version, and the changelog entry aligned.
 
 ## Manual Release Trigger
 
-You can also run the `Release` workflow manually from the GitHub Actions tab and provide a version like `1.0.1`.
+You can also run the `Release` workflow manually from the GitHub Actions tab and provide a version like `2.0.0`.
 
 The manual workflow still validates the requested version against `VERSION` and still uses the matching `CHANGELOG.md` section for the release body.
 

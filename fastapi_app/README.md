@@ -5,7 +5,7 @@ This project is now a FastAPI-only backend for exploring connections between act
 
 The application version is now sourced from the root `VERSION` file so releases can be managed consistently across docs, the API, and CI.
 
-GitHub Releases can also be generated from matching git tags and changelog entries, so a release tag like `v1.0.1` can publish the `1.0.1` notes automatically.
+GitHub Releases can also be generated from matching git tags and changelog entries, so a release tag like `v2.0.0` can publish the `2.0.0` notes automatically.
 
 ## How to Run
 

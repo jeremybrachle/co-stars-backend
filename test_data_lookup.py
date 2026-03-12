@@ -113,7 +113,7 @@ class TestDbHelperLookups(unittest.TestCase):
 
 
 class TestFrontendSnapshotBuilders(unittest.TestCase):
-    @patch("frontend_snapshot.get_project_version", return_value="1.0.0")
+    @patch("frontend_snapshot.get_project_version", return_value="2.0.0")
     @patch("frontend_snapshot.get_all_movie_actor_links")
     @patch("frontend_snapshot.get_all_movies")
     @patch("frontend_snapshot.get_all_actors")
@@ -140,7 +140,7 @@ class TestFrontendSnapshotBuilders(unittest.TestCase):
             [{"actor_a": "George Clooney", "actor_b": "Matt Damon", "stars": 3}]
         )
 
-        self.assertEqual(snapshot["meta"]["version"], "1.0.0")
+        self.assertEqual(snapshot["meta"]["version"], "2.0.0")
         self.assertEqual(snapshot["meta"]["actor_count"], 2)
         self.assertEqual(snapshot["adjacency"]["actor_to_movies"]["1461"], [161])
         self.assertEqual(snapshot["adjacency"]["movie_to_actors"]["161"], [1461, 1892])
@@ -148,7 +148,7 @@ class TestFrontendSnapshotBuilders(unittest.TestCase):
         mock_get_project_version.assert_called_once()
 
     @patch("frontend_snapshot._get_source_updated_at", return_value="2026-03-11T00:00:00+00:00")
-    @patch("frontend_snapshot.get_project_version", return_value="1.0.0")
+    @patch("frontend_snapshot.get_project_version", return_value="2.0.0")
     @patch("frontend_snapshot.get_all_movie_actor_links")
     @patch("frontend_snapshot.get_all_movies")
     @patch("frontend_snapshot.get_all_actors")
@@ -168,7 +168,7 @@ class TestFrontendSnapshotBuilders(unittest.TestCase):
             [{"actor_a": "George Clooney", "actor_b": "Matt Damon", "stars": 3}]
         )
 
-        self.assertEqual(manifest["version"], "1.0.0")
+        self.assertEqual(manifest["version"], "2.0.0")
         self.assertEqual(manifest["source_updated_at"], "2026-03-11T00:00:00+00:00")
         self.assertEqual(manifest["recommended_refresh_interval_hours"], 168)
         self.assertEqual(manifest["snapshot_endpoint"], "/api/export/frontend-snapshot")

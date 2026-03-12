@@ -30,7 +30,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Extract the release notes for a semantic version from CHANGELOG.md"
     )
-    parser.add_argument("version", help="Version number without the leading v, for example 1.0.0")
+    parser.add_argument("version", help="Version number without the leading v, for example 2.0.0")
     parser.add_argument(
         "--output",
         help="Optional file path to write the extracted notes to",
