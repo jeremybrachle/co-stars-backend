@@ -1,0 +1,42 @@
+[
+  {
+    "actor_a": "Matt Damon",
+    "actor_b": "Daniel Craig",
+    "stars": 3
+  },
+  {
+    "actor_a": "George Clooney",
+    "actor_b": "Tobey Maguire",
+    "stars": 4
+  },
+  {
+    "actor_a": "Brad Pitt",
+    "actor_b": "Leonardo DiCaprio",
+    "stars": 5
+  },
+  {
+    "actor_a": "Meryl Streep",
+    "actor_b": "Tom Hanks",
+    "stars": 2
+  },
+  {
+    "actor_a": "Scarlett Johansson",
+    "actor_b": "Robert Downey Jr.",
+    "stars": 3
+  },
+  {
+    "actor_a": "Jennifer Lawrence",
+    "actor_b": "Chris Pratt",
+    "stars": 1
+  },
+  {
+    "actor_a": "Emma Stone",
+    "actor_b": "Ryan Gosling",
+    "stars": 2
+  },
+  {
+    "actor_a": "Natalie Portman",
+    "actor_b": "Jake Gyllenhaal",
+    "stars": 5
+  }
+]

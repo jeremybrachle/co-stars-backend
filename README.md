@@ -63,6 +63,8 @@ For a single shareable handoff file intended for the consuming frontend project'
 
 For deployment steps and the minimal frontend-facing production endpoints, see `DEPLOYMENT.md`.
 
+For static JSON export and GitHub Actions publishing to S3/CloudFront, see `S3_SNAPSHOT_DEPLOYMENT.md`.
+
 ### Open-Ended Suggestion API
 
 The API is now intentionally open-ended:
@@ -262,6 +264,8 @@ This repository now tracks releases with a root-level `VERSION` file and `CHANGE
 
 The repository now includes a GitHub Actions workflow in `.github/workflows/ci.yml`.
 
+The repository also includes `.github/workflows/snapshot-deploy.yml` for exporting frontend snapshot assets and publishing them to S3 from pull requests and from `main`.
+
 - It runs on pushes to `main`.
 - It runs on pushes to branches.
 - It runs on pull requests, which are the GitHub equivalent of GitLab merge requests.
@@ -285,4 +289,6 @@ See `RELEASING.md` for the full release workflow.
 - All endpoints are documented and testable at `/docs` (Swagger UI).
 - For database setup and ingestion, see the usage section above.
 - Long term, the backend can be reduced to TMDB ingestion, root data maintenance, and snapshot export while gameplay logic moves client-side.
+
+
 

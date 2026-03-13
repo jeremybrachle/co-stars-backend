@@ -1,0 +1,300 @@
+name: Snapshot Deploy
+
+on:
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: Git ref to deploy, for example main or a branch name
+        required: false
+        default: main
+        type: string
+      deploy_prefix:
+        description: Optional S3 prefix override, for example co-stars/prod
+        required: false
+        type: string
+      snapshot_base_url:
+        description: Optional public base URL override, for example https://cdn.example.com
+        required: false
+        type: string
+      publish_to_s3:
+        description: Publish exported files to S3
+        required: true
+        default: true
+        type: boolean
+      invalidate_cloudfront:
+        description: Invalidate CloudFront after publish if distribution ID is configured
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: snapshot-deploy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-prebuilt-artifacts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.git_ref || github.ref }}
+
+      - name: Resolve deploy target
+        id: target
+        shell: bash
+        env:
+          MAIN_PREFIX: ${{ vars.SNAPSHOT_MAIN_PREFIX }}
+          BASE_URL: ${{ vars.SNAPSHOT_BASE_URL }}
+          INPUT_DEPLOY_PREFIX: ${{ inputs.deploy_prefix }}
+          INPUT_BASE_URL: ${{ inputs.snapshot_base_url }}
+        run: |
+          set -euo pipefail
+
+          normalize_prefix() {
+            local value="$1"
+            if [ -z "$value" ]; then
+              printf ''
+              return
+            fi
+            value="${value#/}"
+            value="${value%/}"
+            printf '%s' "$value"
+          }
+
+          MAIN_PREFIX="$(normalize_prefix "${MAIN_PREFIX:-co-stars/prod}")"
+
+          if [ -n "${INPUT_DEPLOY_PREFIX:-}" ]; then
+            DEPLOY_PREFIX="$(normalize_prefix "$INPUT_DEPLOY_PREFIX")"
+          else
+            DEPLOY_PREFIX="$MAIN_PREFIX"
+          fi
+
+          if [ -n "${INPUT_BASE_URL:-}" ]; then
+            BASE_URL="$INPUT_BASE_URL"
+          fi
+
+          BASE_URL="${BASE_URL%/}"
+
+          if [ -n "$DEPLOY_PREFIX" ]; then
+            SNAPSHOT_KEY="$DEPLOY_PREFIX/frontend-snapshot.json"
+            MANIFEST_KEY="$DEPLOY_PREFIX/frontend-manifest.json"
+          else
+            SNAPSHOT_KEY="frontend-snapshot.json"
+            MANIFEST_KEY="frontend-manifest.json"
+          fi
+
+          if [ -n "$BASE_URL" ]; then
+            SNAPSHOT_URL="$BASE_URL/$SNAPSHOT_KEY"
+            MANIFEST_URL="$BASE_URL/$MANIFEST_KEY"
+          else
+            SNAPSHOT_URL="frontend-snapshot.json"
+            MANIFEST_URL="frontend-manifest.json"
+          fi
+
+          echo "deploy_prefix=$DEPLOY_PREFIX" >> "$GITHUB_OUTPUT"
+          echo "snapshot_key=$SNAPSHOT_KEY" >> "$GITHUB_OUTPUT"
+          echo "manifest_key=$MANIFEST_KEY" >> "$GITHUB_OUTPUT"
+          echo "snapshot_url=$SNAPSHOT_URL" >> "$GITHUB_OUTPUT"
+          echo "manifest_url=$MANIFEST_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Validate committed snapshot artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f dist/frontend-snapshot.json || {
+            echo "Missing dist/frontend-snapshot.json in the checkout."
+            echo "Generate and commit it locally before running snapshot deploy."
+            exit 1
+          }
+
+          test -f dist/frontend-manifest.json || {
+            echo "Missing dist/frontend-manifest.json in the checkout."
+            echo "Generate and commit it locally before running snapshot deploy."
+            exit 1
+          }
+
+      - name: Show exported files
+        shell: bash
+        run: |
+          echo "Committed snapshot artifacts:"
+          ls -lah dist
+          echo
+          echo "Manifest preview:"
+          sed -n '1,80p' dist/frontend-manifest.json
+
+      - name: Validate deploy prerequisites
+        id: validate
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUBLISH_TO_S3: ${{ inputs.publish_to_s3 }}
+          AWS_REGION_VALUE: ${{ vars.AWS_REGION }}
+          AWS_ROLE_ARN_VALUE: ${{ vars.AWS_ROLE_ARN }}
+          SNAPSHOT_BUCKET_VALUE: ${{ vars.SNAPSHOT_S3_BUCKET }}
+          AWS_BUCKET_VALUE: ${{ vars.AWS_S3_BUCKET }}
+          CLOUDFRONT_DISTRIBUTION_VALUE: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+          AWS_CLOUDFRONT_DISTRIBUTION_VALUE: ${{ vars.AWS_CLOUDFRONT_DISTRIBUTION_ID }}
+        run: |
+          set -euo pipefail
+
+          should_publish=true
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$PUBLISH_TO_S3" != "true" ]; then
+            should_publish=false
+          fi
+
+          bucket_value="$SNAPSHOT_BUCKET_VALUE"
+          if [ -z "$bucket_value" ]; then
+            bucket_value="$AWS_BUCKET_VALUE"
+          fi
+
+          distribution_value="$CLOUDFRONT_DISTRIBUTION_VALUE"
+          if [ -z "$distribution_value" ]; then
+            distribution_value="$AWS_CLOUDFRONT_DISTRIBUTION_VALUE"
+          fi
+
+          missing=()
+          if [ "$should_publish" = "true" ]; then
+            [ -n "$AWS_REGION_VALUE" ] || missing+=("AWS_REGION")
+            [ -n "$AWS_ROLE_ARN_VALUE" ] || missing+=("AWS_ROLE_ARN")
+            [ -n "$bucket_value" ] || missing+=("SNAPSHOT_S3_BUCKET or AWS_S3_BUCKET")
+          fi
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            echo "missing_vars=$(IFS=,; echo "${missing[*]}")" >> "$GITHUB_OUTPUT"
+            echo "Missing required GitHub Actions variables for AWS publish: ${missing[*]}"
+            exit 1
+          fi
+
+          echo "should_publish=$should_publish" >> "$GITHUB_OUTPUT"
+          echo "missing_vars=" >> "$GITHUB_OUTPUT"
+          echo "bucket_value=$bucket_value" >> "$GITHUB_OUTPUT"
+          echo "distribution_value=$distribution_value" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Snapshot Diagnostics"
+            echo
+            echo "- Event: $EVENT_NAME"
+            echo "- Publish requested: $should_publish"
+            echo "- AWS_REGION set: $([ -n "$AWS_REGION_VALUE" ] && echo yes || echo no)"
+            echo "- AWS_ROLE_ARN set: $([ -n "$AWS_ROLE_ARN_VALUE" ] && echo yes || echo no)"
+            echo "- SNAPSHOT_S3_BUCKET set: $([ -n "$SNAPSHOT_BUCKET_VALUE" ] && echo yes || echo no)"
+            echo "- AWS_S3_BUCKET set: $([ -n "$AWS_BUCKET_VALUE" ] && echo yes || echo no)"
+            echo "- Effective bucket: $([ -n "$bucket_value" ] && echo "$bucket_value" || echo '<missing>')"
+            echo "- CLOUDFRONT_DISTRIBUTION_ID set: $([ -n "$CLOUDFRONT_DISTRIBUTION_VALUE" ] && echo yes || echo no)"
+            echo "- AWS_CLOUDFRONT_DISTRIBUTION_ID set: $([ -n "$AWS_CLOUDFRONT_DISTRIBUTION_VALUE" ] && echo yes || echo no)"
+            echo "- Effective distribution ID: $([ -n "$distribution_value" ] && echo "$distribution_value" || echo '<not configured>')"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload snapshot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-data-${{ github.run_id }}
+          path: |
+            dist/frontend-manifest.json
+            dist/frontend-snapshot.json
+          if-no-files-found: error
+
+      - name: Configure AWS credentials
+        if: |
+          steps.validate.outputs.should_publish == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Show AWS caller identity
+        if: |
+          steps.validate.outputs.should_publish == 'true'
+        shell: bash
+        run: aws sts get-caller-identity
+
+      - name: Publish static assets to S3
+        if: |
+          steps.validate.outputs.should_publish == 'true'
+        shell: bash
+        env:
+          BUCKET: ${{ steps.validate.outputs.bucket_value }}
+          SNAPSHOT_KEY: ${{ steps.target.outputs.snapshot_key }}
+          MANIFEST_KEY: ${{ steps.target.outputs.manifest_key }}
+        run: |
+          set -euo pipefail
+
+          echo "Publishing snapshot to s3://$BUCKET/$SNAPSHOT_KEY"
+          aws s3 cp dist/frontend-snapshot.json "s3://$BUCKET/$SNAPSHOT_KEY" \
+            --content-type application/json \
+            --cache-control "public, max-age=300"
+
+          echo "Publishing manifest to s3://$BUCKET/$MANIFEST_KEY"
+          aws s3 cp dist/frontend-manifest.json "s3://$BUCKET/$MANIFEST_KEY" \
+            --content-type application/json \
+            --cache-control "no-cache, no-store, must-revalidate"
+
+      - name: Verify S3 objects
+        if: |
+          steps.validate.outputs.should_publish == 'true'
+        shell: bash
+        env:
+          BUCKET: ${{ steps.validate.outputs.bucket_value }}
+          DEPLOY_PREFIX: ${{ steps.target.outputs.deploy_prefix }}
+        run: |
+          if [ -n "$DEPLOY_PREFIX" ]; then
+            aws s3 ls "s3://$BUCKET/$DEPLOY_PREFIX/"
+          else
+            aws s3 ls "s3://$BUCKET/"
+          fi
+
+      - name: Invalidate CloudFront cache
+        if: |
+          steps.validate.outputs.should_publish == 'true' &&
+          (github.event_name != 'workflow_dispatch' || inputs.invalidate_cloudfront) &&
+          vars.AWS_ROLE_ARN != '' &&
+          vars.AWS_REGION != '' &&
+          steps.validate.outputs.distribution_value != ''
+        shell: bash
+        env:
+          DISTRIBUTION_ID: ${{ steps.validate.outputs.distribution_value }}
+          SNAPSHOT_KEY: ${{ steps.target.outputs.snapshot_key }}
+          MANIFEST_KEY: ${{ steps.target.outputs.manifest_key }}
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "$DISTRIBUTION_ID" \
+            --paths \
+              "/$MANIFEST_KEY" \
+              "/$SNAPSHOT_KEY"
+
+      - name: Write workflow summary
+        shell: bash
+        run: |
+          {
+            echo "## Snapshot Deployment"
+            echo
+            echo "- Event: ${{ github.event_name }}"
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              echo "- Git ref: ${{ inputs.git_ref || 'main' }}"
+              echo "- Publish to S3: ${{ inputs.publish_to_s3 }}"
+              echo "- Invalidate CloudFront: ${{ inputs.invalidate_cloudfront }}"
+            fi
+            if [ -n "${{ steps.target.outputs.deploy_prefix }}" ]; then
+              echo "- S3 prefix: s3://${{ steps.validate.outputs.bucket_value }}/${{ steps.target.outputs.deploy_prefix }}"
+            else
+              echo "- S3 prefix: s3://${{ steps.validate.outputs.bucket_value }}/"
+            fi
+            if [ "${{ steps.target.outputs.manifest_url }}" != "frontend-manifest.json" ]; then
+              echo "- Manifest URL: ${{ steps.target.outputs.manifest_url }}"
+              echo "- Snapshot URL: ${{ steps.target.outputs.snapshot_url }}"
+            else
+              echo "- Manifest file: frontend-manifest.json"
+              echo "- Snapshot file: frontend-snapshot.json"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

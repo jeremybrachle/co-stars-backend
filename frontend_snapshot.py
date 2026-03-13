@@ -75,10 +75,39 @@ def _build_adjacency(link_rows):
     return actor_to_movies, movie_to_actors
 
 
+def _normalize_actor_name(name):
+    return name.strip().casefold()
+
+
+def _validate_levels_against_actor_rows(levels, actor_rows):
+    actor_names = {
+        _normalize_actor_name(name)
+        for _actor_id, name, _popularity in actor_rows
+        if isinstance(name, str) and name.strip()
+    }
+    missing_names = set()
+
+    for level in levels:
+        for field_name in ("actor_a", "actor_b"):
+            actor_name = level.get(field_name)
+            if not isinstance(actor_name, str) or not actor_name.strip():
+                continue
+            if _normalize_actor_name(actor_name) not in actor_names:
+                missing_names.add(actor_name)
+
+    if missing_names:
+        missing_list = ", ".join(sorted(missing_names, key=str.casefold))
+        raise ValueError(
+            "Levels reference actors missing from the exported graph: "
+            f"{missing_list}. This usually means the snapshot export is using the wrong database."
+        )
+
+
 def build_frontend_snapshot(levels):
     actor_rows = get_all_actors()
     movie_rows = get_all_movies()
     link_rows = get_all_movie_actor_links()
+    _validate_levels_against_actor_rows(levels, actor_rows)
     actor_to_movies, movie_to_actors = _build_adjacency(link_rows)
 
     return {
@@ -101,10 +130,11 @@ def build_frontend_snapshot(levels):
     }
 
 
-def build_frontend_manifest(levels):
+def build_frontend_manifest(levels, snapshot_endpoint="/api/export/frontend-snapshot"):
     actor_rows = get_all_actors()
     movie_rows = get_all_movies()
     link_rows = get_all_movie_actor_links()
+    _validate_levels_against_actor_rows(levels, actor_rows)
 
     return {
         "version": get_project_version(),
@@ -114,5 +144,5 @@ def build_frontend_manifest(levels):
         "relationship_count": len(link_rows),
         "level_count": len(levels),
         "recommended_refresh_interval_hours": 168,
-        "snapshot_endpoint": "/api/export/frontend-snapshot",
+        "snapshot_endpoint": snapshot_endpoint,
     }
