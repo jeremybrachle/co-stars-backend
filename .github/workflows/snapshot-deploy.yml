@@ -29,11 +29,6 @@ on:
         required: true
         default: true
         type: boolean
-      use_fixture_db:
-        description: Seed the synthetic CI fixture when no real movies.db is available. For pipeline testing only.
-        required: true
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -44,7 +39,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  export-and-deploy:
+  deploy-prebuilt-artifacts:
     runs-on: ubuntu-latest
 
     steps:
@@ -52,39 +47,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.git_ref || github.ref }}
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-          cache-dependency-path: requirements.txt
-
-      - name: Install dependencies
-        run: python -m pip install --upgrade pip && pip install -r requirements.txt
-
-      - name: Prepare export database
-        shell: bash
-        env:
-          USE_FIXTURE_DB: ${{ inputs.use_fixture_db || 'false' }}
-        run: |
-          set -euo pipefail
-
-          if [ -f movies.db ]; then
-            echo "Using movies.db from the checkout."
-            exit 0
-          fi
-
-          if [ "$USE_FIXTURE_DB" = "true" ]; then
-            echo "movies.db not found; seeding synthetic CI fixture because use_fixture_db=true."
-            python ci_seed_db.py
-            exit 0
-          fi
-
-          echo "movies.db not found in the checkout."
-          echo "Refusing to export a fixture-backed snapshot by default."
-          echo "Provide a real export database or manually run workflow_dispatch with use_fixture_db=true for pipeline testing only."
-          exit 1
 
       - name: Resolve deploy target
         id: target
@@ -144,17 +106,27 @@ jobs:
           echo "snapshot_url=$SNAPSHOT_URL" >> "$GITHUB_OUTPUT"
           echo "manifest_url=$MANIFEST_URL" >> "$GITHUB_OUTPUT"
 
-      - name: Export static frontend assets
+      - name: Validate committed snapshot artifacts
+        shell: bash
         run: |
-          python export_frontend_snapshot.py \
-            --output dist/frontend-snapshot.json \
-            --manifest-output dist/frontend-manifest.json \
-            --snapshot-endpoint "${{ steps.target.outputs.snapshot_url }}"
+          set -euo pipefail
+
+          test -f dist/frontend-snapshot.json || {
+            echo "Missing dist/frontend-snapshot.json in the checkout."
+            echo "Generate and commit it locally before running snapshot deploy."
+            exit 1
+          }
+
+          test -f dist/frontend-manifest.json || {
+            echo "Missing dist/frontend-manifest.json in the checkout."
+            echo "Generate and commit it locally before running snapshot deploy."
+            exit 1
+          }
 
       - name: Show exported files
         shell: bash
         run: |
-          echo "Exported files:"
+          echo "Committed snapshot artifacts:"
           ls -lah dist
           echo
           echo "Manifest preview:"

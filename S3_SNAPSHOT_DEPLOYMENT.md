@@ -2,7 +2,7 @@
 
 This repository can publish static frontend data files instead of running the FastAPI app in AWS.
 
-The static deployment flow exports two JSON files:
+The static deployment flow publishes two committed JSON files:
 
 - `frontend-manifest.json`
 - `frontend-snapshot.json`
@@ -16,14 +16,12 @@ The workflow lives at `.github/workflows/snapshot-deploy.yml`.
 It does the following:
 
 1. checks out the repo
-2. installs Python dependencies
-3. uses `movies.db` from the checkout when present
-4. fails fast instead of silently falling back to synthetic fixture data
-5. optionally seeds `ci_seed_db.py` only when manual `workflow_dispatch` runs set `use_fixture_db=true`
-6. exports static JSON assets
-7. uploads the JSON files as a GitHub Actions artifact
-8. deploys assets from pull requests in the same repository
-9. deploys assets when code lands on `main`
+2. validates that `dist/frontend-manifest.json` and `dist/frontend-snapshot.json` are present in the checkout
+3. uploads the JSON files as a GitHub Actions artifact
+4. deploys assets from pull requests in the same repository
+5. deploys assets when code lands on `main`
+
+The workflow does not need `movies.db` anymore. The database stays local and the exported JSON files become the deployable artifact.
 
 Current deploy path for both pull requests and `main`:
 
@@ -100,7 +98,9 @@ The exported manifest already contains the correct static `snapshot_endpoint`, s
 
 ## Manual Local Export
 
-You can generate the same static files locally with:
+Generate the deployable artifacts locally from your real `movies.db`, then commit the JSON files and let GitHub publish them.
+
+If you want the manifest to use a relative path and live beside the snapshot in S3, run:
 
 ```bash
 python export_frontend_snapshot.py \
@@ -108,20 +108,38 @@ python export_frontend_snapshot.py \
   --manifest-output dist/frontend-manifest.json
 ```
 
-Use your real `movies.db` for production exports.
+That writes:
 
-If you only want to test the export pipeline shape, you can seed the synthetic CI fixture first:
+- `dist/frontend-snapshot.json`
+- `dist/frontend-manifest.json`
+
+If you want the manifest to point at an absolute deployed URL instead, generate it with:
 
 ```bash
-python ci_seed_db.py
 python export_frontend_snapshot.py \
   --output dist/frontend-snapshot.json \
-  --manifest-output dist/frontend-manifest.json
+  --manifest-output dist/frontend-manifest.json \
+  --snapshot-endpoint https://example.com/co-stars/prod/frontend-snapshot.json
 ```
 
-The CI fixture is intentionally fake and includes placeholder data such as `Fixture Bridge Line`, so it should never be published as production gameplay data.
+Then commit the updated artifacts:
 
-If you want the manifest to reference an absolute public URL instead, add `--snapshot-endpoint https://example.com/co-stars/frontend-snapshot.json`.
+```bash
+git add dist/frontend-manifest.json dist/frontend-snapshot.json
+git commit -m "Update frontend snapshot artifacts"
+git push
+```
+
+On push, the GitHub workflow publishes those committed JSON files to S3. No database file needs to be committed.
+
+## Recommended Artifact Model
+
+Treat these JSON files as the release asset for the frontend:
+
+- `dist/frontend-manifest.json` is the lightweight freshness check and pointer file
+- `dist/frontend-snapshot.json` is the full read-only graph payload
+
+Treat `movies.db` as a local source asset, not a deployment artifact.
 
 ## Minimum AWS Inputs You Need
 
