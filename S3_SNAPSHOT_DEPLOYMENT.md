@@ -17,11 +17,13 @@ It does the following:
 
 1. checks out the repo
 2. installs Python dependencies
-3. seeds a deterministic SQLite fixture with `ci_seed_db.py`
-4. exports static JSON assets
-5. uploads the JSON files as a GitHub Actions artifact
-6. deploys assets from pull requests in the same repository
-7. deploys assets when code lands on `main`
+3. uses `movies.db` from the checkout when present
+4. fails fast instead of silently falling back to synthetic fixture data
+5. optionally seeds `ci_seed_db.py` only when manual `workflow_dispatch` runs set `use_fixture_db=true`
+6. exports static JSON assets
+7. uploads the JSON files as a GitHub Actions artifact
+8. deploys assets from pull requests in the same repository
+9. deploys assets when code lands on `main`
 
 Current deploy path for both pull requests and `main`:
 
@@ -101,11 +103,23 @@ The exported manifest already contains the correct static `snapshot_endpoint`, s
 You can generate the same static files locally with:
 
 ```bash
+python export_frontend_snapshot.py \
+  --output dist/frontend-snapshot.json \
+  --manifest-output dist/frontend-manifest.json
+```
+
+Use your real `movies.db` for production exports.
+
+If you only want to test the export pipeline shape, you can seed the synthetic CI fixture first:
+
+```bash
 python ci_seed_db.py
 python export_frontend_snapshot.py \
   --output dist/frontend-snapshot.json \
   --manifest-output dist/frontend-manifest.json
 ```
+
+The CI fixture is intentionally fake and includes placeholder data such as `Fixture Bridge Line`, so it should never be published as production gameplay data.
 
 If you want the manifest to reference an absolute public URL instead, add `--snapshot-endpoint https://example.com/co-stars/frontend-snapshot.json`.
 

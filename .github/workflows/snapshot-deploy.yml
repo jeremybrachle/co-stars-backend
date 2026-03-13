@@ -29,6 +29,11 @@ on:
         required: true
         default: true
         type: boolean
+      use_fixture_db:
+        description: Seed the synthetic CI fixture when no real movies.db is available. For pipeline testing only.
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -58,8 +63,28 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip && pip install -r requirements.txt
 
-      - name: Seed fixture database
-        run: python ci_seed_db.py
+      - name: Prepare export database
+        shell: bash
+        env:
+          USE_FIXTURE_DB: ${{ inputs.use_fixture_db || 'false' }}
+        run: |
+          set -euo pipefail
+
+          if [ -f movies.db ]; then
+            echo "Using movies.db from the checkout."
+            exit 0
+          fi
+
+          if [ "$USE_FIXTURE_DB" = "true" ]; then
+            echo "movies.db not found; seeding synthetic CI fixture because use_fixture_db=true."
+            python ci_seed_db.py
+            exit 0
+          fi
+
+          echo "movies.db not found in the checkout."
+          echo "Refusing to export a fixture-backed snapshot by default."
+          echo "Provide a real export database or manually run workflow_dispatch with use_fixture_db=true for pipeline testing only."
+          exit 1
 
       - name: Resolve deploy target
         id: target

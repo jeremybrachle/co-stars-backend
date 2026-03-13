@@ -1,3 +1,5 @@
+"""Deterministic synthetic fixture data for CI and local tests only."""
+
 from db import init_db
 from db_helper import insert_actor, insert_movie, insert_relationship
 
@@ -13,7 +15,7 @@ ACTORS = [
 MOVIES = [
     (161, "Ocean's Eleven", "2001-12-07"),
     (1422, "The Departed", "2006-10-04"),
-    (910001, "Bridge Line", "2010-01-01"),
+    (910001, "Fixture Bridge Line", "2010-01-01"),
 ]
 
 RELATIONSHIPS = [
@@ -39,7 +41,7 @@ def main():
     for movie_id, actor_id in RELATIONSHIPS:
         insert_relationship(movie_id, actor_id)
 
-    print("Seeded deterministic CI database fixture.")
+    print("Seeded deterministic CI test fixture database.")
 
 
 if __name__ == "__main__":
