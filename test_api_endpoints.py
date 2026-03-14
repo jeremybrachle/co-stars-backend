@@ -20,7 +20,7 @@ class TestApiEndpoints(unittest.TestCase):
     @patch("fastapi_app.main.build_frontend_manifest")
     def test_export_frontend_manifest_returns_refresh_metadata(self, mock_build_frontend_manifest):
         mock_build_frontend_manifest.return_value = {
-            "version": "2.0.0",
+            "version": "2.1.0",
             "source_updated_at": "2026-03-11T00:00:00+00:00",
             "actor_count": 2,
             "movie_count": 1,
@@ -41,7 +41,7 @@ class TestApiEndpoints(unittest.TestCase):
     def test_export_frontend_snapshot_returns_full_graph_payload(self, mock_build_frontend_snapshot):
         mock_build_frontend_snapshot.return_value = {
             "meta": {
-                "version": "2.0.0",
+                "version": "2.1.0",
                 "exported_at": "2026-03-11T00:00:00+00:00",
                 "actor_count": 2,
                 "movie_count": 1,
@@ -49,11 +49,43 @@ class TestApiEndpoints(unittest.TestCase):
                 "level_count": 1,
             },
             "actors": [
-                {"id": 1, "name": "George Clooney", "popularity": 33.1},
-                {"id": 2, "name": "Matt Damon", "popularity": 51.25},
+                {
+                    "id": 1,
+                    "name": "George Clooney",
+                    "popularity": 33.1,
+                    "birthday": "1961-05-06",
+                    "deathday": None,
+                    "place_of_birth": "Lexington, Kentucky, USA",
+                    "biography": "Actor, director, and producer.",
+                    "profile_path": "/george.jpg",
+                    "profile_url": "https://image.tmdb.org/t/p/w500/george.jpg",
+                    "known_for_department": "Acting",
+                },
+                {
+                    "id": 2,
+                    "name": "Matt Damon",
+                    "popularity": 51.25,
+                    "birthday": "1970-10-08",
+                    "deathday": None,
+                    "place_of_birth": "Cambridge, Massachusetts, USA",
+                    "biography": "Actor and screenwriter.",
+                    "profile_path": "/matt.jpg",
+                    "profile_url": "https://image.tmdb.org/t/p/w500/matt.jpg",
+                    "known_for_department": "Acting",
+                },
             ],
             "movies": [
-                {"id": 11, "title": "Ocean's Eleven", "release_date": "2001-12-07"},
+                {
+                    "id": 11,
+                    "title": "Ocean's Eleven",
+                    "release_date": "2001-12-07",
+                    "genres": ["Crime", "Thriller"],
+                    "overview": "Danny Ocean assembles a crew.",
+                    "poster_path": "/oceans.jpg",
+                    "poster_url": "https://image.tmdb.org/t/p/w500/oceans.jpg",
+                    "original_language": "en",
+                    "content_rating": "PG-13",
+                },
             ],
             "movie_actors": [
                 {"movie_id": 11, "actor_id": 1},
@@ -75,11 +107,31 @@ class TestApiEndpoints(unittest.TestCase):
         self.assertEqual(response.json()["adjacency"]["movie_to_actors"]["11"], [1, 2])
         mock_build_frontend_snapshot.assert_called_once()
 
-    @patch("fastapi_app.main.get_all_actors")
-    def test_get_all_actors_returns_full_actor_records(self, mock_get_all_actors):
+    @patch("fastapi_app.main.get_all_actors_with_metadata")
+    def test_get_all_actors_returns_enriched_actor_records(self, mock_get_all_actors):
         mock_get_all_actors.return_value = [
-            (1, "George Clooney", 33.1),
-            (2, "Matt Damon", 51.25),
+            (
+                1,
+                "George Clooney",
+                33.1,
+                "1961-05-06",
+                None,
+                "Lexington, Kentucky, USA",
+                "Actor, director, and producer.",
+                "/george.jpg",
+                "Acting",
+            ),
+            (
+                2,
+                "Matt Damon",
+                51.25,
+                "1970-10-08",
+                None,
+                "Cambridge, Massachusetts, USA",
+                "Actor and screenwriter.",
+                "/matt.jpg",
+                "Acting",
+            ),
         ]
 
         response = self.client.get("/api/actors")
@@ -88,16 +140,56 @@ class TestApiEndpoints(unittest.TestCase):
         self.assertEqual(
             response.json(),
             [
-                {"id": 1, "name": "George Clooney", "popularity": 33.1},
-                {"id": 2, "name": "Matt Damon", "popularity": 51.25},
+                {
+                    "id": 1,
+                    "name": "George Clooney",
+                    "popularity": 33.1,
+                    "birthday": "1961-05-06",
+                    "deathday": None,
+                    "place_of_birth": "Lexington, Kentucky, USA",
+                    "biography": "Actor, director, and producer.",
+                    "profile_path": "/george.jpg",
+                    "profile_url": "https://image.tmdb.org/t/p/w500/george.jpg",
+                    "known_for_department": "Acting",
+                },
+                {
+                    "id": 2,
+                    "name": "Matt Damon",
+                    "popularity": 51.25,
+                    "birthday": "1970-10-08",
+                    "deathday": None,
+                    "place_of_birth": "Cambridge, Massachusetts, USA",
+                    "biography": "Actor and screenwriter.",
+                    "profile_path": "/matt.jpg",
+                    "profile_url": "https://image.tmdb.org/t/p/w500/matt.jpg",
+                    "known_for_department": "Acting",
+                },
             ],
         )
 
-    @patch("fastapi_app.main.get_all_movies")
-    def test_get_all_movies_returns_full_movie_records(self, mock_get_all_movies):
+    @patch("fastapi_app.main.get_all_movies_with_metadata")
+    def test_get_all_movies_returns_enriched_movie_records(self, mock_get_all_movies):
         mock_get_all_movies.return_value = [
-            (11, "Ocean's Eleven", "2001-12-07"),
-            (22, "The Departed", "2006-10-04"),
+            (
+                11,
+                "Ocean's Eleven",
+                "2001-12-07",
+                '["Crime", "Thriller"]',
+                "Danny Ocean assembles a crew.",
+                "/oceans.jpg",
+                "en",
+                "PG-13",
+            ),
+            (
+                22,
+                "The Departed",
+                "2006-10-04",
+                '["Crime", "Drama"]',
+                "An undercover cop and a mole try to identify each other.",
+                "/departed.jpg",
+                "en",
+                "R",
+            ),
         ]
 
         response = self.client.get("/api/movies")
@@ -106,8 +198,28 @@ class TestApiEndpoints(unittest.TestCase):
         self.assertEqual(
             response.json(),
             [
-                {"id": 11, "title": "Ocean's Eleven", "release_date": "2001-12-07"},
-                {"id": 22, "title": "The Departed", "release_date": "2006-10-04"},
+                {
+                    "id": 11,
+                    "title": "Ocean's Eleven",
+                    "release_date": "2001-12-07",
+                    "genres": ["Crime", "Thriller"],
+                    "overview": "Danny Ocean assembles a crew.",
+                    "poster_path": "/oceans.jpg",
+                    "poster_url": "https://image.tmdb.org/t/p/w500/oceans.jpg",
+                    "original_language": "en",
+                    "content_rating": "PG-13",
+                },
+                {
+                    "id": 22,
+                    "title": "The Departed",
+                    "release_date": "2006-10-04",
+                    "genres": ["Crime", "Drama"],
+                    "overview": "An undercover cop and a mole try to identify each other.",
+                    "poster_path": "/departed.jpg",
+                    "poster_url": "https://image.tmdb.org/t/p/w500/departed.jpg",
+                    "original_language": "en",
+                    "content_rating": "R",
+                },
             ],
         )
 
