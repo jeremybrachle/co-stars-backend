@@ -1,9 +1,15 @@
 from datetime import datetime, timezone
+import json
 from pathlib import Path
 
-from db_helper import get_all_actors, get_all_movie_actor_links, get_all_movies
+from db_helper import (
+    get_all_actors_with_metadata,
+    get_all_movie_actor_links,
+    get_all_movies_with_metadata,
+)
 from db import DB_FILE
 from project_version import get_project_version
+from tmdb_api import build_poster_url, build_profile_url
 
 
 ROOT = Path(__file__).resolve().parent
@@ -33,23 +39,44 @@ def _get_source_updated_at():
 def _serialize_actors(actor_rows):
     return [
         {
-            "id": actor_id,
-            "name": name,
-            "popularity": popularity,
+            "id": row[0],
+            "name": row[1],
+            "popularity": row[2],
+            "birthday": row[3],
+            "deathday": row[4],
+            "place_of_birth": row[5],
+            "biography": row[6],
+            "profile_path": row[7],
+            "profile_url": build_profile_url(row[7]),
+            "known_for_department": row[8],
         }
-        for actor_id, name, popularity in actor_rows
+        for row in actor_rows
     ]
 
 
 def _serialize_movies(movie_rows):
-    return [
-        {
-            "id": movie_id,
-            "title": title,
-            "release_date": release_date,
-        }
-        for movie_id, title, release_date in movie_rows
-    ]
+    serialized = []
+    for row in movie_rows:
+        genres_json = row[3]
+        try:
+            genres = json.loads(genres_json) if genres_json else []
+        except json.JSONDecodeError:
+            genres = []
+
+        serialized.append(
+            {
+                "id": row[0],
+                "title": row[1],
+                "release_date": row[2],
+                "genres": genres,
+                "overview": row[4],
+                "poster_path": row[5],
+                "poster_url": build_poster_url(row[5]),
+                "original_language": row[6],
+                "content_rating": row[7],
+            }
+        )
+    return serialized
 
 
 def _serialize_links(link_rows):
@@ -81,9 +108,9 @@ def _normalize_actor_name(name):
 
 def _validate_levels_against_actor_rows(levels, actor_rows):
     actor_names = {
-        _normalize_actor_name(name)
-        for _actor_id, name, _popularity in actor_rows
-        if isinstance(name, str) and name.strip()
+        _normalize_actor_name(row[1])
+        for row in actor_rows
+        if isinstance(row[1], str) and row[1].strip()
     }
     missing_names = set()
 
@@ -104,8 +131,8 @@ def _validate_levels_against_actor_rows(levels, actor_rows):
 
 
 def build_frontend_snapshot(levels):
-    actor_rows = get_all_actors()
-    movie_rows = get_all_movies()
+    actor_rows = get_all_actors_with_metadata()
+    movie_rows = get_all_movies_with_metadata()
     link_rows = get_all_movie_actor_links()
     _validate_levels_against_actor_rows(levels, actor_rows)
     actor_to_movies, movie_to_actors = _build_adjacency(link_rows)
@@ -131,8 +158,8 @@ def build_frontend_snapshot(levels):
 
 
 def build_frontend_manifest(levels, snapshot_endpoint="/api/export/frontend-snapshot"):
-    actor_rows = get_all_actors()
-    movie_rows = get_all_movies()
+    actor_rows = get_all_actors_with_metadata()
+    movie_rows = get_all_movies_with_metadata()
     link_rows = get_all_movie_actor_links()
     _validate_levels_against_actor_rows(levels, actor_rows)
 

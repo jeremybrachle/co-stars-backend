@@ -1,0 +1,23 @@
+Database initialized.
+Loaded 19 movie IDs from movie_seed.csv
+Inserted movie 'Ocean's Eleven' and 78 actors.
+Inserted movie 'The Departed' and 102 actors.
+Inserted movie 'The Great Gatsby' and 103 actors.
+Inserted movie 'The Perfect Storm' and 30 actors.
+Inserted movie 'Hail, Caesar!' and 97 actors.
+Inserted movie 'Solo: A Star Wars Story' and 103 actors.
+Inserted movie 'Manchester by the Sea' and 49 actors.
+Inserted movie 'Venom: Let There Be Carnage' and 54 actors.
+Inserted movie 'Troy' and 37 actors.
+Inserted movie 'Fight Club' and 76 actors.
+Inserted movie 'The Bourne Identity' and 51 actors.
+Inserted movie 'Babylon' and 242 actors.
+Inserted movie 'Love Actually' and 124 actors.
+Inserted movie 'Inception' and 52 actors.
+Inserted movie 'The Batman' and 86 actors.
+Inserted movie 'Knives Out' and 32 actors.
+Inserted movie 'Inglourious Basterds' and 73 actors.
+Inserted movie 'The Martian' and 54 actors.
+Inserted movie 'Spectre' and 83 actors.
+
+Database population complete! Inserted: 19, Refreshed: 0, Skipped: 0

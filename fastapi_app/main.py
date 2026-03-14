@@ -23,12 +23,15 @@ from db_helper import (
     actor_exists,
     get_actors_in_movie,
     get_all_actors,
+    get_all_actors_with_metadata,
     get_all_movies,
+    get_all_movies_with_metadata,
     get_movies_for_actor as db_get_movies_for_actor,
     movie_exists,
 )
 from frontend_snapshot import build_frontend_manifest, build_frontend_snapshot
 from project_version import get_project_version
+from tmdb_api import build_poster_url, build_profile_url
 import json
 
 load_dotenv()
@@ -68,11 +71,25 @@ ACTORS_EXAMPLE = [
         "id": 1461,
         "name": "George Clooney",
         "popularity": 33.1,
+        "birthday": "1961-05-06",
+        "deathday": None,
+        "place_of_birth": "Lexington, Kentucky, USA",
+        "biography": "Actor, director, and producer.",
+        "profile_path": "/kHiVY6r1.jpg",
+        "profile_url": "https://image.tmdb.org/t/p/w500/kHiVY6r1.jpg",
+        "known_for_department": "Acting",
     },
     {
         "id": 1892,
         "name": "Matt Damon",
         "popularity": 51.25,
+        "birthday": "1970-10-08",
+        "deathday": None,
+        "place_of_birth": "Cambridge, Massachusetts, USA",
+        "biography": "Actor and screenwriter.",
+        "profile_path": "/aAFA.jpg",
+        "profile_url": "https://image.tmdb.org/t/p/w500/aAFA.jpg",
+        "known_for_department": "Acting",
     },
 ]
 
@@ -81,17 +98,29 @@ MOVIES_EXAMPLE = [
         "id": 161,
         "title": "Ocean's Eleven",
         "release_date": "2001-12-07",
+        "genres": ["Thriller", "Crime"],
+        "overview": "Danny Ocean assembles a crew to rob three casinos.",
+        "poster_path": "/hQQo.jpg",
+        "poster_url": "https://image.tmdb.org/t/p/w500/hQQo.jpg",
+        "original_language": "en",
+        "content_rating": "PG-13",
     },
     {
         "id": 1422,
         "title": "The Departed",
         "release_date": "2006-10-04",
+        "genres": ["Drama", "Thriller", "Crime"],
+        "overview": "An undercover cop and a mole try to identify each other.",
+        "poster_path": "/jyAgiqVSx5fl0NNj7WoGGKweXrL.jpg",
+        "poster_url": "https://image.tmdb.org/t/p/w500/jyAgiqVSx5fl0NNj7WoGGKweXrL.jpg",
+        "original_language": "en",
+        "content_rating": "R",
     },
 ]
 
 FRONTEND_SNAPSHOT_EXAMPLE = {
     "meta": {
-        "version": "2.0.0",
+        "version": "2.1.0",
         "exported_at": "2026-03-11T00:00:00+00:00",
         "actor_count": 2,
         "movie_count": 1,
@@ -117,7 +146,7 @@ FRONTEND_SNAPSHOT_EXAMPLE = {
 }
 
 FRONTEND_MANIFEST_EXAMPLE = {
-    "version": "2.0.0",
+    "version": "2.1.0",
     "source_updated_at": "2026-03-11T00:00:00+00:00",
     "actor_count": 2,
     "movie_count": 1,
@@ -129,7 +158,7 @@ FRONTEND_MANIFEST_EXAMPLE = {
 
 HEALTH_EXAMPLE = {
     "status": "ok",
-    "version": "2.0.0",
+    "version": "2.1.0",
 }
 
 MOVIE_SUGGESTIONS_EXAMPLE = [
@@ -357,6 +386,16 @@ class Actor(BaseModel):
     popularity: Optional[float] = None
 
 
+class ActorCatalog(Actor):
+    birthday: Optional[str] = None
+    deathday: Optional[str] = None
+    place_of_birth: Optional[str] = None
+    biography: Optional[str] = None
+    profile_path: Optional[str] = None
+    profile_url: Optional[str] = None
+    known_for_department: Optional[str] = None
+
+
 class ActorSuggestion(Actor):
     path_hint: Optional[PathHint] = None
 
@@ -364,6 +403,15 @@ class Movie(BaseModel):
     id: int
     title: str
     release_date: Optional[str] = None
+
+
+class MovieCatalog(Movie):
+    genres: List[str] = Field(default_factory=list)
+    overview: Optional[str] = None
+    poster_path: Optional[str] = None
+    poster_url: Optional[str] = None
+    original_language: Optional[str] = None
+    content_rating: Optional[str] = None
 
 
 class MovieSuggestion(Movie):
@@ -391,8 +439,8 @@ class FrontendAdjacency(BaseModel):
 
 class FrontendSnapshot(BaseModel):
     meta: FrontendSnapshotMeta
-    actors: List[Actor]
-    movies: List[Movie]
+    actors: List[ActorCatalog]
+    movies: List[MovieCatalog]
     movie_actors: List[MovieActorLink]
     adjacency: FrontendAdjacency
     levels: List[Level]
@@ -451,12 +499,24 @@ def resolve_target_node(target_type: Optional[NodeType], target_id: Optional[int
 
 def serialize_actor_rows(actor_rows, target_node=None):
     serialized = []
-    for actor_id, name, popularity in actor_rows:
+    for row in actor_rows:
+        actor_id, name, popularity = row[:3]
         actor = {
             "id": actor_id,
             "name": name,
             "popularity": popularity,
         }
+        if len(row) >= 9:
+            actor.update(
+                {
+                    "birthday": row[3],
+                    "deathday": row[4],
+                    "place_of_birth": row[5],
+                    "biography": row[6],
+                    "profile_path": row[7],
+                    "known_for_department": row[8],
+                }
+            )
         if target_node is not None:
             target_type, target_id = target_node
             actor["path_hint"] = build_path_hint(actor_id, "actor", target_id, target_type)
@@ -464,9 +524,31 @@ def serialize_actor_rows(actor_rows, target_node=None):
     return serialized
 
 
+def serialize_actor_catalog_rows(actor_rows):
+    serialized = []
+    for row in actor_rows:
+        actor_id, name, popularity = row[:3]
+        serialized.append(
+            {
+                "id": actor_id,
+                "name": name,
+                "popularity": popularity,
+                "birthday": row[3],
+                "deathday": row[4],
+                "place_of_birth": row[5],
+                "biography": row[6],
+                "profile_path": row[7],
+                "profile_url": build_profile_url(row[7]),
+                "known_for_department": row[8],
+            }
+        )
+    return serialized
+
+
 def serialize_movie_rows(movie_rows, target_node=None):
     serialized = []
-    for movie_id, title, release_date in movie_rows:
+    for row in movie_rows:
+        movie_id, title, release_date = row[:3]
         movie = {
             "id": movie_id,
             "title": title,
@@ -476,6 +558,31 @@ def serialize_movie_rows(movie_rows, target_node=None):
             target_type, target_id = target_node
             movie["path_hint"] = build_path_hint(movie_id, "movie", target_id, target_type)
         serialized.append(movie)
+    return serialized
+
+
+def serialize_movie_catalog_rows(movie_rows):
+    serialized = []
+    for row in movie_rows:
+        genres_json = row[3]
+        try:
+            genres = json.loads(genres_json) if genres_json else []
+        except json.JSONDecodeError:
+            genres = []
+
+        serialized.append(
+            {
+                "id": row[0],
+                "title": row[1],
+                "release_date": row[2],
+                "genres": genres,
+                "overview": row[4],
+                "poster_path": row[5],
+                "poster_url": build_poster_url(row[5]),
+                "original_language": row[6],
+                "content_rating": row[7],
+            }
+        )
     return serialized
 
 
@@ -515,7 +622,7 @@ def get_levels():
 
 @app.get(
     "/api/actors",
-    response_model=List[Actor],
+    response_model=List[ActorCatalog],
     summary="Get all actors",
     tags=["Catalog"],
     responses={
@@ -527,12 +634,12 @@ def get_levels():
 )
 def get_actors():
     """Returns every actor in the database with all actor attributes."""
-    return serialize_actor_rows(get_all_actors())
+    return serialize_actor_catalog_rows(get_all_actors_with_metadata())
 
 
 @app.get(
     "/api/movies",
-    response_model=List[Movie],
+    response_model=List[MovieCatalog],
     summary="Get all movies",
     tags=["Catalog"],
     responses={
@@ -544,7 +651,7 @@ def get_actors():
 )
 def get_movies():
     """Returns every movie in the database with all movie attributes."""
-    return serialize_movie_rows(get_all_movies())
+    return serialize_movie_catalog_rows(get_all_movies_with_metadata())
 
 
 @app.get(
