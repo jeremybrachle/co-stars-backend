@@ -7,3 +7,4 @@ __pycache__/
 query_scratch.py
 templates/archive/*
 templates/misc/*
+*.csv

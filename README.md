@@ -5,6 +5,8 @@ Co-Stars Backend is a FastAPI-only backend for exploring connections between act
 
 Release versioning now starts from `2.0.0`, with the current application version sourced from the root `VERSION` file.
 
+The current backend and snapshot contract version is `2.1.0`, which adds enriched TMDB metadata and ready-to-render image URLs to catalog and snapshot responses.
+
 ## Overview
 
 - Query actor/movie data and relationships from a local SQLite database
@@ -60,6 +62,8 @@ For frontend integration details, including exact localhost URLs and how to buil
 For frontend-local data sync and snapshot-based integration that avoids gameplay API calls, see `FRONTEND_DATA_SYNC.md`.
 
 For a single shareable handoff file intended for the consuming frontend project's agent, see `FRONTEND_AGENT_HANDOFF.md`.
+
+For the dedicated enriched metadata upgrade contract and frontend migration guide, see `FRONTEND_ENRICHMENT_HANDOFF.md`.
 
 For deployment steps and the minimal frontend-facing production endpoints, see `DEPLOYMENT.md`.
 

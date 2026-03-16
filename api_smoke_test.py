@@ -49,14 +49,21 @@ print_result.url = actors_url
 try:
     all_actors = resp.json()
     passed = resp.status_code == 200 and isinstance(all_actors, list) and all(
-        "id" in actor and "name" in actor and "popularity" in actor for actor in all_actors
+        "id" in actor
+        and "name" in actor
+        and "popularity" in actor
+        and "birthday" in actor
+        and "profile_path" in actor
+        and "profile_url" in actor
+        and "known_for_department" in actor
+        for actor in all_actors
     )
     detail = None if all_actors else "No actors returned."
 except Exception as exc:
     all_actors = None
     passed = False
     detail = str(exc)
-print_result("GET /api/actors returns full actor catalog", passed, "200 OK and actor list", all_actors, detail)
+print_result("GET /api/actors returns enriched actor catalog", passed, "200 OK and enriched actor list", all_actors, detail)
 
 
 movies_catalog_url = f"{BASE_URL}/api/movies"
@@ -65,14 +72,47 @@ print_result.url = movies_catalog_url
 try:
     all_movies = resp.json()
     passed = resp.status_code == 200 and isinstance(all_movies, list) and all(
-        "id" in movie and "title" in movie and "release_date" in movie for movie in all_movies
+        "id" in movie
+        and "title" in movie
+        and "release_date" in movie
+        and "genres" in movie
+        and "overview" in movie
+        and "poster_path" in movie
+        and "poster_url" in movie
+        and "original_language" in movie
+        and "content_rating" in movie
+        for movie in all_movies
     )
     detail = None if all_movies else "No movies returned."
 except Exception as exc:
     all_movies = None
     passed = False
     detail = str(exc)
-print_result("GET /api/movies returns full movie catalog", passed, "200 OK and movie list", all_movies, detail)
+print_result("GET /api/movies returns enriched movie catalog", passed, "200 OK and enriched movie list", all_movies, detail)
+
+
+snapshot_url = f"{BASE_URL}/api/export/frontend-snapshot"
+resp = requests.get(snapshot_url)
+print_result.url = snapshot_url
+try:
+    snapshot = resp.json()
+    snapshot_actors = snapshot.get("actors", [])
+    snapshot_movies = snapshot.get("movies", [])
+    passed = (
+        resp.status_code == 200
+        and isinstance(snapshot.get("meta"), dict)
+        and snapshot.get("meta", {}).get("version") == "2.1.0"
+        and isinstance(snapshot_actors, list)
+        and isinstance(snapshot_movies, list)
+        and all("profile_url" in actor for actor in snapshot_actors)
+        and all("poster_url" in movie for movie in snapshot_movies)
+    )
+    detail = None
+except Exception as exc:
+    snapshot = None
+    passed = False
+    detail = str(exc)
+print_result("GET /api/export/frontend-snapshot returns enriched graph payload", passed, "200 OK and enriched snapshot", snapshot, detail)
 
 
 start_actor_name = "George Clooney"

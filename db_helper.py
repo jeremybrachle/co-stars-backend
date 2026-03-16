@@ -4,26 +4,97 @@ from db import DB_FILE
 def get_connection():
     return sqlite3.connect(DB_FILE)
 
-def insert_movie(movie_id, title, release_date):
+def insert_movie(
+    movie_id,
+    title,
+    release_date,
+    genres_json=None,
+    overview=None,
+    poster_path=None,
+    original_language=None,
+    content_rating=None,
+):
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT OR IGNORE INTO movies (id, title, release_date)
-        VALUES (?, ?, ?)
-    """, (movie_id, title, release_date))
+        INSERT INTO movies (
+            id,
+            title,
+            release_date,
+            genres_json,
+            overview,
+            poster_path,
+            original_language,
+            content_rating
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            title=excluded.title,
+            release_date=COALESCE(excluded.release_date, movies.release_date),
+            genres_json=excluded.genres_json,
+            overview=excluded.overview,
+            poster_path=excluded.poster_path,
+            original_language=excluded.original_language,
+            content_rating=excluded.content_rating
+    """, (
+        movie_id,
+        title,
+        release_date,
+        genres_json,
+        overview,
+        poster_path,
+        original_language,
+        content_rating,
+    ))
     conn.commit()
     conn.close()
 
-def insert_actor(actor_id, name, popularity=None):
+def insert_actor(
+    actor_id,
+    name,
+    popularity=None,
+    birthday=None,
+    deathday=None,
+    place_of_birth=None,
+    biography=None,
+    profile_path=None,
+    known_for_department=None,
+):
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO actors (id, name, popularity)
-        VALUES (?, ?, ?)
+        INSERT INTO actors (
+            id,
+            name,
+            popularity,
+            birthday,
+            deathday,
+            place_of_birth,
+            biography,
+            profile_path,
+            known_for_department
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             name=excluded.name,
-            popularity=COALESCE(excluded.popularity, actors.popularity)
-    """, (actor_id, name, popularity))
+            popularity=COALESCE(excluded.popularity, actors.popularity),
+            birthday=excluded.birthday,
+            deathday=excluded.deathday,
+            place_of_birth=excluded.place_of_birth,
+            biography=excluded.biography,
+            profile_path=excluded.profile_path,
+            known_for_department=excluded.known_for_department
+    """, (
+        actor_id,
+        name,
+        popularity,
+        birthday,
+        deathday,
+        place_of_birth,
+        biography,
+        profile_path,
+        known_for_department,
+    ))
     conn.commit()
     conn.close()
 
@@ -79,6 +150,62 @@ def get_all_movies():
         "SELECT id, title, release_date FROM movies ORDER BY title COLLATE NOCASE ASC"
     )
     result = cursor.fetchall()
+    conn.close()
+    return result
+
+
+def get_all_actors_with_metadata():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT
+            id,
+            name,
+            popularity,
+            birthday,
+            deathday,
+            place_of_birth,
+            biography,
+            profile_path,
+            known_for_department
+        FROM actors
+        ORDER BY name COLLATE NOCASE ASC
+        """
+    )
+    result = cursor.fetchall()
+    conn.close()
+    return result
+
+
+def get_all_movies_with_metadata():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT
+            id,
+            title,
+            release_date,
+            genres_json,
+            overview,
+            poster_path,
+            original_language,
+            content_rating
+        FROM movies
+        ORDER BY title COLLATE NOCASE ASC
+        """
+    )
+    result = cursor.fetchall()
+    conn.close()
+    return result
+
+
+def get_all_movie_ids():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM movies ORDER BY id ASC")
+    result = [row[0] for row in cursor.fetchall()]
     conn.close()
     return result
 
