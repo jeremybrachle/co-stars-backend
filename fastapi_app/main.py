@@ -1,11 +1,18 @@
 from enum import Enum
 import os
+import sys
+from pathlib import Path as FilePath
 from fastapi import FastAPI, HTTPException, Query, Body, Path
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from typing import List, Optional
+
+ROOT_DIR = FilePath(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 from versus_game import (
     get_actor_by_name as vg_get_actor_by_name,
     get_actor_details_by_name as vg_get_actor_details_by_name,
