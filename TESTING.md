@@ -7,22 +7,22 @@ This project keeps each test entry point runnable on its own and now also includ
 Run everything together:
 
 ```bash
-python3 run_all_tests.py
+./venv/bin/python run_all_tests.py
 ```
 
 Run everything except the live smoke test:
 
 ```bash
-python3 run_all_tests.py --skip-smoke
+./venv/bin/python run_all_tests.py --skip-smoke
 ```
 
 Run each test independently:
 
 ```bash
-python3 test_api_endpoints.py
-python3 test_data_lookup.py
-python3 test_path_utils.py
-python3 api_smoke_test.py
+./venv/bin/python test_api_endpoints.py
+./venv/bin/python test_data_lookup.py
+./venv/bin/python test_path_utils.py
+./venv/bin/python api_smoke_test.py
 ```
 
 ## What The Combined Runner Does
@@ -38,7 +38,7 @@ python3 api_smoke_test.py
 Run the DB lookup and snapshot builder tests:
 
 ```bash
-python3 test_data_lookup.py
+./venv/bin/python test_data_lookup.py
 ```
 
 This script:
@@ -52,13 +52,13 @@ This script:
 `api_smoke_test.py` calls the live API at `http://localhost:8000`, so start the server first when you want the full combined run:
 
 ```bash
-uvicorn fastapi_app.main:app --reload
+./venv/bin/uvicorn fastapi_app.main:app --reload
 ```
 
 If the server is not running, use:
 
 ```bash
-python3 run_all_tests.py --skip-smoke
+./venv/bin/python run_all_tests.py --skip-smoke
 ```
 
 ## Typical Workflow
@@ -66,14 +66,14 @@ python3 run_all_tests.py --skip-smoke
 Fast feedback while changing Python logic:
 
 ```bash
-python3 run_all_tests.py --skip-smoke
+./venv/bin/python run_all_tests.py --skip-smoke
 ```
 
 Full end-to-end verification before frontend or API work:
 
 ```bash
-uvicorn fastapi_app.main:app --reload
-python3 run_all_tests.py
+./venv/bin/uvicorn fastapi_app.main:app --reload
+./venv/bin/python run_all_tests.py
 ```
 
 ## Output Shape

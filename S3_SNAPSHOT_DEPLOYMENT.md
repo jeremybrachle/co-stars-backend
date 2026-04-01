@@ -100,12 +100,14 @@ The exported manifest already contains the correct static `snapshot_endpoint`, s
 
 Generate the deployable artifacts locally from your real `movies.db`, then commit the JSON files and let GitHub publish them.
 
-If you want the manifest to use a relative path and live beside the snapshot in S3, run:
+If you want the manifest to use a relative path, live beside the snapshot in S3, and export the new grouped v2 level contract for the frontend preload, run:
 
 ```bash
-python export_frontend_snapshot.py \
+./venv/bin/python export_frontend_snapshot.py \
+  --api-version v2 \
   --output dist/frontend-snapshot.json \
-  --manifest-output dist/frontend-manifest.json
+  --manifest-output dist/frontend-manifest.json \
+  --snapshot-endpoint frontend-snapshot.json
 ```
 
 That writes:
@@ -116,7 +118,8 @@ That writes:
 If you want the manifest to point at an absolute deployed URL instead, generate it with:
 
 ```bash
-python export_frontend_snapshot.py \
+./venv/bin/python export_frontend_snapshot.py \
+  --api-version v2 \
   --output dist/frontend-snapshot.json \
   --manifest-output dist/frontend-manifest.json \
   --snapshot-endpoint https://example.com/co-stars/prod/frontend-snapshot.json

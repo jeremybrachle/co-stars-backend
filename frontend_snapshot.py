@@ -8,12 +8,12 @@ from db_helper import (
     get_all_movies_with_metadata,
 )
 from db import DB_FILE
+from levels_contracts import V1_LEVELS_FILE, V2_LEVELS_FILE, summarize_v2_levels
 from project_version import get_project_version
 from tmdb_api import build_poster_url, build_profile_url
 
 
 ROOT = Path(__file__).resolve().parent
-LEVELS_FILE = ROOT / "levels.json"
 
 
 def _isoformat_from_timestamp(timestamp):
@@ -27,8 +27,9 @@ def _get_source_updated_at():
     if db_path.exists():
         timestamps.append(db_path.stat().st_mtime)
 
-    if LEVELS_FILE.exists():
-        timestamps.append(LEVELS_FILE.stat().st_mtime)
+    for levels_path in (V1_LEVELS_FILE, V2_LEVELS_FILE):
+        if levels_path.exists():
+            timestamps.append(levels_path.stat().st_mtime)
 
     if not timestamps:
         return datetime.now(timezone.utc).isoformat()
@@ -170,6 +171,59 @@ def build_frontend_manifest(levels, snapshot_endpoint="/api/export/frontend-snap
         "movie_count": len(movie_rows),
         "relationship_count": len(link_rows),
         "level_count": len(levels),
+        "recommended_refresh_interval_hours": 168,
+        "snapshot_endpoint": snapshot_endpoint,
+    }
+
+
+def build_frontend_snapshot_v2(levels_document):
+    actor_rows = get_all_actors_with_metadata()
+    movie_rows = get_all_movies_with_metadata()
+    link_rows = get_all_movie_actor_links()
+    actor_to_movies, movie_to_actors = _build_adjacency(link_rows)
+    level_summary = summarize_v2_levels(levels_document)
+
+    return {
+        "meta": {
+            "version": get_project_version(),
+            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "actor_count": len(actor_rows),
+            "movie_count": len(movie_rows),
+            "relationship_count": len(link_rows),
+            "level_count": level_summary["level_count"],
+            "level_group_count": level_summary["level_group_count"],
+            "normal_game_count": level_summary["normal_game_count"],
+            "boss_game_count": level_summary["boss_game_count"],
+            "level_schema_version": levels_document.get("schema-version", 2),
+        },
+        "actors": _serialize_actors(actor_rows),
+        "movies": _serialize_movies(movie_rows),
+        "movie_actors": _serialize_links(link_rows),
+        "adjacency": {
+            "actor_to_movies": actor_to_movies,
+            "movie_to_actors": movie_to_actors,
+        },
+        "levels": list(levels_document.get("levels", [])),
+    }
+
+
+def build_frontend_manifest_v2(levels_document, snapshot_endpoint="/api/v2/export/frontend-snapshot"):
+    actor_rows = get_all_actors_with_metadata()
+    movie_rows = get_all_movies_with_metadata()
+    link_rows = get_all_movie_actor_links()
+    level_summary = summarize_v2_levels(levels_document)
+
+    return {
+        "version": get_project_version(),
+        "source_updated_at": _get_source_updated_at(),
+        "actor_count": len(actor_rows),
+        "movie_count": len(movie_rows),
+        "relationship_count": len(link_rows),
+        "level_count": level_summary["level_count"],
+        "level_group_count": level_summary["level_group_count"],
+        "normal_game_count": level_summary["normal_game_count"],
+        "boss_game_count": level_summary["boss_game_count"],
+        "level_schema_version": levels_document.get("schema-version", 2),
         "recommended_refresh_interval_hours": 168,
         "snapshot_endpoint": snapshot_endpoint,
     }

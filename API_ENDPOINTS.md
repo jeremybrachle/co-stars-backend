@@ -17,8 +17,6 @@ http://localhost:8000/api/export/frontend-manifest
 http://localhost:8000/api/levels
 http://localhost:8000/api/actors
 http://localhost:8000/api/movies
-http://localhost:8000/api/export/frontend-snapshot
-http://localhost:8000/api/actor/Matt%20Damon
 http://localhost:8000/api/actor/1461/movies?target_type=actor&target_id=1892
 http://localhost:8000/api/movie/161/costars?exclude=George%20Clooney&target_type=actor&target_id=1892
 ```
@@ -45,8 +43,6 @@ GET http://localhost:8000/api/export/frontend-manifest
 
 - Endpoint: `GET /api/levels`
 - Description: Returns predefined challenge levels.
-
-```http
 GET http://localhost:8000/api/levels
 ```
 
@@ -63,9 +59,6 @@ GET http://localhost:8000/api/actors
 
 - Endpoint: `GET /api/movies`
 - Description: Returns every movie in the database with all movie attributes.
-
-```http
-GET http://localhost:8000/api/movies
 ```
 
 ## 6. Export Frontend Snapshot
@@ -85,8 +78,6 @@ GET http://localhost:8000/api/export/frontend-snapshot
   "meta": {
     "version": "2.0.0",
     "exported_at": "2026-03-11T00:00:00+00:00",
-    "actor_count": 2,
-    "movie_count": 1,
     "relationship_count": 2,
     "level_count": 1
   },
@@ -118,9 +109,6 @@ GET http://localhost:8000/api/export/frontend-snapshot
 
 ```http
 GET http://localhost:8000/api/actor/Matt%20Damon
-```
-
-## 8. Get Movies For Actor
 
 - Endpoint: `GET /api/actor/<actor_id>/movies`
 - Description: Returns all movies for the actor. If `target_type` and `target_id` are provided, each movie also includes a shortest-path hint from that movie to the target node.
@@ -143,8 +131,6 @@ GET http://localhost:8000/api/actor/1461/movies?target_type=actor&target_id=1892
 
 ```http
 GET http://localhost:8000/api/movie/161/costars?exclude=George%20Clooney&target_type=actor&target_id=1892
-```
-
 ## 10. Validate Path
 
 - Endpoint: `POST /api/path/validate`
@@ -171,10 +157,6 @@ Content-Type: application/json
 - Suggestion endpoints return full raw lists. The frontend decides whether to show all options, a subset, random options, or ranked options.
 - Optional `path_hint` metadata lets the backend expose the optimal path to the target for each returned option, including immediate matches where `steps_to_target` is `0`.
 - The `/api/export/frontend-snapshot` endpoint is the lowest-call integration path if you want the frontend to own the graph and run game logic locally.
-    "movie_count": 1,
-    "relationship_count": 2,
-    "level_count": 1
-  },
   "actors": [
     { "id": 1461, "name": "George Clooney", "popularity": 33.1 },
     { "id": 1892, "name": "Matt Damon", "popularity": 51.25 }
@@ -213,9 +195,6 @@ GET http://localhost:8000/api/actor/Matt%20Damon
   - `target_type=actor|movie`
   - `target_id=<id>`
 
-```http
-GET http://localhost:8000/api/actor/1461/movies?target_type=actor&target_id=1892
-```
 
 ## 9. Get Actors For Movie
 
@@ -271,8 +250,6 @@ http://localhost:8000
 http://localhost:8000/docs
 http://localhost:8000/api/levels
 http://localhost:8000/api/actors
-http://localhost:8000/api/movies
-http://localhost:8000/api/actor/Matt%20Damon
 http://localhost:8000/api/actor/1461/movies?target_type=actor&target_id=1892
 http://localhost:8000/api/movie/161/costars?exclude=George%20Clooney&target_type=actor&target_id=1892
 ```
@@ -299,8 +276,6 @@ GET http://localhost:8000/api/actors
 
 - Response shape:
 
-```json
-[
   {
     "id": 1892,
     "name": "Matt Damon",
@@ -326,8 +301,6 @@ GET http://localhost:8000/api/movies
   {
     "id": 161,
     "title": "Ocean's Eleven",
-    "release_date": "2001-12-07"
-  }
 ]
 ```
 
@@ -345,9 +318,6 @@ GET http://localhost:8000/api/actor/Matt%20Damon
 
 ```json
 {
-  "id": 1892,
-  "name": "Matt Damon",
-  "popularity": 51.25
 }
 ```
 
@@ -377,9 +347,6 @@ GET http://localhost:8000/api/actor/1461/movies?target_type=actor&target_id=1892
       "steps_to_target": 1,
       "path": [
         { "id": 161, "type": "movie", "label": "Ocean's Eleven" },
-        { "id": 1892, "type": "actor", "label": "Matt Damon" }
-      ]
-    }
   }
 ]
 ```
@@ -409,8 +376,6 @@ GET http://localhost:8000/api/movie/161/costars?exclude=George%20Clooney&target_
     "path_hint": {
       "reachable": true,
       "steps_to_target": 0,
-      "path": [
-        { "id": 1892, "type": "actor", "label": "Matt Damon" }
       ]
     }
   }
@@ -435,8 +400,6 @@ Content-Type: application/json
   "path": [
     "George Clooney",
     "Ocean's Eleven",
-    "Matt Damon"
-  ]
 }
 ```
 
@@ -469,11 +432,6 @@ Content-Type: application/json
 - Response shape:
 
 ```json
-{
-  "path": "George Clooney -> Ocean's Eleven -> Matt Damon",
-  "nodes": [
-    { "id": 1461, "type": "actor", "label": "George Clooney" },
-    { "id": 161, "type": "movie", "label": "Ocean's Eleven" },
     { "id": 1892, "type": "actor", "label": "Matt Damon" }
   ],
   "steps": 2,

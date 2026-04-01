@@ -1,17 +1,72 @@
-[
-  {
-    "actor_a": "Matt Damon",
-    "actor_b": "Daniel Craig",
-    "stars": 3
-  },
-  {
-    "actor_a": "George Clooney",
-    "actor_b": "Tobey Maguire",
-    "stars": 4
-  },
-  {
-    "actor_a": "Brad Pitt",
-    "actor_b": "Leonardo DiCaprio",
-    "stars": 5
-  }
-]
+{
+  "schema-version": 2,
+  "levels": [
+    {
+      "level-id": "1",
+      "level-name": "Level 1 - Early 2000s",
+      "game-data": [
+        {
+          "game-id": "1",
+          "game-type": "normal-non-boss",
+          "startNode": { "id": 1892, "type": "actor", "label": "Matt Damon" },
+          "targetNode": { "id": 8784, "type": "actor", "label": "Daniel Craig" },
+          "notes": { "text": "American Spy vs. British Spy" },
+          "settings": {}
+        },
+        {
+          "game-id": "2",
+          "game-type": "normal-non-boss",
+          "startNode": { "id": 1461, "type": "actor", "label": "George Clooney" },
+          "targetNode": { "id": 2219, "type": "actor", "label": "Tobey Maguire" },
+          "notes": { "text": "Batman vs. Spider-Man" },
+          "settings": {}
+        },
+        {
+          "game-id": "3",
+          "game-type": "normal-non-boss",
+          "startNode": { "id": 287, "type": "actor", "label": "Brad Pitt" },
+          "targetNode": { "id": 6193, "type": "actor", "label": "Leonardo DiCaprio" },
+          "notes": { "text": "Once Upon a Time (not) in Hollywood" },
+          "settings": {}
+        }
+      ]
+    },
+    {
+      "level-id": "2",
+      "level-name": "Level 2 - Name Game",
+      "game-data": [
+        {
+          "game-id": "4",
+          "game-type": "normal-non-boss",
+          "startNode": { "id": 7062, "type": "actor", "label": "Andrew Lincoln" },
+          "targetNode": { "id": 125660, "type": "actor", "label": "Andrew Scott" },
+          "notes": { "text": "Drew Of An" },
+          "settings": {}
+        },
+        {
+          "game-id": "5",
+          "game-type": "normal-non-boss",
+          "startNode": { "id": 3896, "type": "actor", "label": "Liam Neeson" },
+          "targetNode": { "id": 2039, "type": "actor", "label": "Brendan Gleeson" },
+          "notes": { "text": "Irish Bleesons" },
+          "settings": {}
+        }
+      ]
+    },
+    {
+      "level-id": "3",
+      "level-name": "Level 3 - Pending Theme",
+      "game-data": []
+    },
+    {
+      "level-id": "4",
+      "level-name": "Level 4 - Pending Theme",
+      "game-data": []
+    },
+    {
+      "level-id": "5",
+      "level-name": "Level 5 - Pending Theme",
+      "game-data": []
+    }
+  ]
+}

@@ -34,13 +34,17 @@ Recommended policy:
 - Refresh cadence: weekly is reasonable if your movie graph changes infrequently.
 - On later app loads: fetch the manifest first and only download the snapshot if `version` or `source_updated_at` changed.
 
-If you want zero runtime API calls after build time, use the export script instead:
+If you want zero runtime API calls after build time, use the export script instead. For the new grouped v2 levels contract, run:
 
 ```bash
-python3 export_frontend_snapshot.py --output frontend_snapshot.json
+./venv/bin/python export_frontend_snapshot.py \
+  --api-version v2 \
+  --output dist/frontend-snapshot.json \
+  --manifest-output dist/frontend-manifest.json \
+  --snapshot-endpoint frontend-snapshot.json
 ```
 
-That JSON can then be copied into, imported by, or published alongside the React project.
+That writes the preloaded frontend artifacts using the v2 grouped levels shape.
 
 ## Snapshot Contents
 

@@ -27,6 +27,22 @@ def summarize_results():
     print(f"\nSummary: {SUMMARY['passed']} passed, {SUMMARY['failed']} failed, {total} total")
 
 
+health_url = f"{BASE_URL}/api/health"
+resp = requests.get(health_url)
+print_result.url = health_url
+try:
+    health = resp.json()
+    api_version = health.get("version")
+    passed = resp.status_code == 200 and health.get("status") == "ok" and isinstance(api_version, str)
+    detail = None
+except Exception as exc:
+    health = None
+    api_version = None
+    passed = False
+    detail = str(exc)
+print_result("GET /api/health returns API status and version", passed, "200 OK with version", health, detail)
+
+
 levels_url = f"{BASE_URL}/api/levels"
 resp = requests.get(levels_url)
 print_result.url = levels_url
@@ -41,6 +57,63 @@ except Exception as exc:
     passed = False
     detail = str(exc)
 print_result("GET /api/levels returns actor-pair levels", passed, "200 OK and level list", levels, detail)
+
+
+levels_v2_url = f"{BASE_URL}/api/v2/levels"
+resp = requests.get(levels_v2_url)
+print_result.url = levels_v2_url
+try:
+    levels_v2 = resp.json()
+    passed = (
+        resp.status_code == 200
+        and isinstance(levels_v2, dict)
+        and levels_v2.get("schema-version") == 2
+        and isinstance(levels_v2.get("levels"), list)
+    )
+    detail = None if levels_v2 else "No v2 levels returned."
+except Exception as exc:
+    levels_v2 = None
+    passed = False
+    detail = str(exc)
+print_result("GET /api/v2/levels returns grouped v2 levels", passed, "200 OK and grouped level document", levels_v2, detail)
+
+
+manifest_v2_url = f"{BASE_URL}/api/v2/export/frontend-manifest"
+resp = requests.get(manifest_v2_url)
+print_result.url = manifest_v2_url
+try:
+    manifest_v2 = resp.json()
+    passed = (
+        resp.status_code == 200
+        and manifest_v2.get("level_schema_version") == 2
+        and "level_group_count" in manifest_v2
+        and manifest_v2.get("snapshot_endpoint") == "/api/v2/export/frontend-snapshot"
+    )
+    detail = None if manifest_v2 else "No v2 manifest returned."
+except Exception as exc:
+    manifest_v2 = None
+    passed = False
+    detail = str(exc)
+print_result("GET /api/v2/export/frontend-manifest returns grouped metadata", passed, "200 OK and grouped manifest metadata", manifest_v2, detail)
+
+
+snapshot_v2_url = f"{BASE_URL}/api/v2/export/frontend-snapshot"
+resp = requests.get(snapshot_v2_url)
+print_result.url = snapshot_v2_url
+try:
+    snapshot_v2 = resp.json()
+    passed = (
+        resp.status_code == 200
+        and snapshot_v2.get("meta", {}).get("level_schema_version") == 2
+        and "level_group_count" in snapshot_v2.get("meta", {})
+        and isinstance(snapshot_v2.get("levels"), list)
+    )
+    detail = None if snapshot_v2 else "No v2 snapshot returned."
+except Exception as exc:
+    snapshot_v2 = None
+    passed = False
+    detail = str(exc)
+print_result("GET /api/v2/export/frontend-snapshot returns grouped snapshot", passed, "200 OK and grouped snapshot payload", snapshot_v2, detail)
 
 
 actors_url = f"{BASE_URL}/api/actors"
@@ -101,7 +174,7 @@ try:
     passed = (
         resp.status_code == 200
         and isinstance(snapshot.get("meta"), dict)
-        and snapshot.get("meta", {}).get("version") == "2.1.0"
+        and snapshot.get("meta", {}).get("version") == api_version
         and isinstance(snapshot_actors, list)
         and isinstance(snapshot_movies, list)
         and all("profile_url" in actor for actor in snapshot_actors)

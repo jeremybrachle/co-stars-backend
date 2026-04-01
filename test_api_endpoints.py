@@ -20,7 +20,7 @@ class TestApiEndpoints(unittest.TestCase):
     @patch("fastapi_app.main.build_frontend_manifest")
     def test_export_frontend_manifest_returns_refresh_metadata(self, mock_build_frontend_manifest):
         mock_build_frontend_manifest.return_value = {
-            "version": "2.1.0",
+            "version": "2.2.0",
             "source_updated_at": "2026-03-11T00:00:00+00:00",
             "actor_count": 2,
             "movie_count": 1,
@@ -37,11 +37,45 @@ class TestApiEndpoints(unittest.TestCase):
         self.assertEqual(response.json()["snapshot_endpoint"], "/api/export/frontend-snapshot")
         mock_build_frontend_manifest.assert_called_once()
 
+    @patch("fastapi_app.main.build_frontend_manifest_v2")
+    @patch("fastapi_app.main.build_v2_levels_export")
+    def test_export_frontend_manifest_v2_returns_grouped_refresh_metadata(
+        self,
+        mock_build_v2_levels_export,
+        mock_build_frontend_manifest_v2,
+    ):
+        mock_build_v2_levels_export.return_value = {
+            "schema-version": 2,
+            "levels": [],
+        }
+        mock_build_frontend_manifest_v2.return_value = {
+            "version": "2.2.0",
+            "source_updated_at": "2026-03-11T00:00:00+00:00",
+            "actor_count": 2,
+            "movie_count": 1,
+            "relationship_count": 2,
+            "level_count": 3,
+            "level_group_count": 5,
+            "normal_game_count": 3,
+            "boss_game_count": 0,
+            "level_schema_version": 2,
+            "recommended_refresh_interval_hours": 168,
+            "snapshot_endpoint": "/api/v2/export/frontend-snapshot",
+        }
+
+        response = self.client.get("/api/v2/export/frontend-manifest")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["level_group_count"], 5)
+        self.assertEqual(response.json()["level_schema_version"], 2)
+        mock_build_v2_levels_export.assert_called_once()
+        mock_build_frontend_manifest_v2.assert_called_once()
+
     @patch("fastapi_app.main.build_frontend_snapshot")
     def test_export_frontend_snapshot_returns_full_graph_payload(self, mock_build_frontend_snapshot):
         mock_build_frontend_snapshot.return_value = {
             "meta": {
-                "version": "2.1.0",
+                "version": "2.2.0",
                 "exported_at": "2026-03-11T00:00:00+00:00",
                 "actor_count": 2,
                 "movie_count": 1,
@@ -106,6 +140,92 @@ class TestApiEndpoints(unittest.TestCase):
         self.assertEqual(response.json()["meta"]["relationship_count"], 2)
         self.assertEqual(response.json()["adjacency"]["movie_to_actors"]["11"], [1, 2])
         mock_build_frontend_snapshot.assert_called_once()
+
+    @patch("fastapi_app.main.build_frontend_snapshot_v2")
+    @patch("fastapi_app.main.build_v2_levels_export")
+    def test_export_frontend_snapshot_v2_returns_grouped_graph_payload(
+        self,
+        mock_build_v2_levels_export,
+        mock_build_frontend_snapshot_v2,
+    ):
+        mock_build_v2_levels_export.return_value = {
+            "schema-version": 2,
+            "levels": [],
+        }
+        mock_build_frontend_snapshot_v2.return_value = {
+            "meta": {
+                "version": "2.2.0",
+                "exported_at": "2026-03-11T00:00:00+00:00",
+                "actor_count": 2,
+                "movie_count": 1,
+                "relationship_count": 2,
+                "level_count": 3,
+                "level_group_count": 5,
+                "normal_game_count": 3,
+                "boss_game_count": 0,
+                "level_schema_version": 2,
+            },
+            "actors": [],
+            "movies": [],
+            "movie_actors": [],
+            "adjacency": {
+                "actor_to_movies": {},
+                "movie_to_actors": {},
+            },
+            "levels": [
+                {
+                    "level-id": "1",
+                    "level-name": "Level 1 - Starter Pack",
+                    "game-data": [
+                        {
+                            "game-id": "1",
+                            "game-type": "normal-non-boss",
+                            "startNode": {"id": 1892, "type": "actor", "label": "Matt Damon"},
+                            "targetNode": {"id": 8784, "type": "actor", "label": "Daniel Craig"},
+                            "notes": {"text": ""},
+                            "settings": {},
+                        }
+                    ],
+                }
+            ],
+        }
+
+        response = self.client.get("/api/v2/export/frontend-snapshot")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["meta"]["level_group_count"], 5)
+        self.assertEqual(response.json()["levels"][0]["game-data"][0]["startNode"]["id"], 1892)
+        mock_build_v2_levels_export.assert_called_once()
+        mock_build_frontend_snapshot_v2.assert_called_once()
+
+    @patch("fastapi_app.main.build_v2_levels_export")
+    def test_get_levels_v2_returns_grouped_level_document(self, mock_build_v2_levels_export):
+        mock_build_v2_levels_export.return_value = {
+            "schema-version": 2,
+            "levels": [
+                {
+                    "level-id": "1",
+                    "level-name": "Level 1 - Starter Pack",
+                    "game-data": [
+                        {
+                            "game-id": "1",
+                            "game-type": "normal-non-boss",
+                            "startNode": {"id": 1892, "type": "actor", "label": "Matt Damon"},
+                            "targetNode": {"id": 8784, "type": "actor", "label": "Daniel Craig"},
+                            "notes": {"text": "Migrated."},
+                            "settings": {},
+                        }
+                    ],
+                }
+            ],
+        }
+
+        response = self.client.get("/api/v2/levels")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["schema-version"], 2)
+        self.assertEqual(response.json()["levels"][0]["level-name"], "Level 1 - Starter Pack")
+        mock_build_v2_levels_export.assert_called_once()
 
     @patch("fastapi_app.main.get_all_actors_with_metadata")
     def test_get_all_actors_returns_enriched_actor_records(self, mock_get_all_actors):
