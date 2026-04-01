@@ -7,7 +7,12 @@ from unittest.mock import patch
 import db
 import db_helper
 import populate_db
-from frontend_snapshot import build_frontend_manifest, build_frontend_snapshot
+from frontend_snapshot import (
+    build_frontend_manifest,
+    build_frontend_manifest_v2,
+    build_frontend_snapshot,
+    build_frontend_snapshot_v2,
+)
 
 
 def initialize_legacy_db(db_path):
@@ -404,6 +409,110 @@ class TestFrontendSnapshotBuilders(unittest.TestCase):
             build_frontend_manifest(
                 [{"actor_a": "George Clooney", "actor_b": "Matt Damon", "stars": 3}]
             )
+
+    @patch("frontend_snapshot.get_project_version", return_value="2.2.0")
+    @patch("frontend_snapshot.get_all_movie_actor_links")
+    @patch("frontend_snapshot.get_all_movies_with_metadata")
+    @patch("frontend_snapshot.get_all_actors_with_metadata")
+    def test_build_frontend_snapshot_v2_assembles_grouped_graph_payload(
+        self,
+        mock_get_all_actors,
+        mock_get_all_movies,
+        mock_get_all_links,
+        mock_get_project_version,
+    ):
+        mock_get_all_actors.return_value = [
+            (1461, "George Clooney", 33.1, "1961-05-06", None, "Lexington, Kentucky, USA", "Actor.", "/george.jpg", "Acting"),
+            (1892, "Matt Damon", 51.25, "1970-10-08", None, "Cambridge, Massachusetts, USA", "Actor.", "/matt.jpg", "Acting"),
+        ]
+        mock_get_all_movies.return_value = [
+            (161, "Ocean's Eleven", "2001-12-07", '["Crime", "Thriller"]', "Danny Ocean assembles a crew.", "/oceans.jpg", "en", "PG-13"),
+        ]
+        mock_get_all_links.return_value = [
+            (161, 1461),
+            (161, 1892),
+        ]
+
+        snapshot = build_frontend_snapshot_v2(
+            {
+                "schema-version": 2,
+                "levels": [
+                    {
+                        "level-id": "1",
+                        "level-name": "Level 1 - Starter Pack",
+                        "game-data": [
+                            {
+                                "game-id": "1",
+                                "game-type": "normal-non-boss",
+                                "startNode": {"id": 1892, "type": "actor", "label": "Matt Damon"},
+                                "targetNode": {"id": 1461, "type": "actor", "label": "George Clooney"},
+                                "notes": {"text": "Fixture"},
+                                "settings": {},
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+
+        self.assertEqual(snapshot["meta"]["version"], "2.2.0")
+        self.assertEqual(snapshot["meta"]["level_schema_version"], 2)
+        self.assertEqual(snapshot["meta"]["level_group_count"], 1)
+        self.assertEqual(snapshot["meta"]["normal_game_count"], 1)
+        self.assertEqual(snapshot["levels"][0]["game-data"][0]["targetNode"]["id"], 1461)
+        mock_get_project_version.assert_called_once()
+
+    @patch("frontend_snapshot._get_source_updated_at", return_value="2026-03-11T00:00:00+00:00")
+    @patch("frontend_snapshot.get_project_version", return_value="2.2.0")
+    @patch("frontend_snapshot.get_all_movie_actor_links")
+    @patch("frontend_snapshot.get_all_movies_with_metadata")
+    @patch("frontend_snapshot.get_all_actors_with_metadata")
+    def test_build_frontend_manifest_v2_reports_grouped_refresh_metadata(
+        self,
+        mock_get_all_actors,
+        mock_get_all_movies,
+        mock_get_all_links,
+        mock_get_project_version,
+        mock_get_source_updated_at,
+    ):
+        mock_get_all_actors.return_value = [
+            (1461, "George Clooney", 33.1, None, None, None, None, None, None),
+            (1892, "Matt Damon", 51.25, None, None, None, None, None, None),
+        ]
+        mock_get_all_movies.return_value = [(161, "Ocean's Eleven", "2001-12-07", None, None, None, None, None)]
+        mock_get_all_links.return_value = [(161, 1461)]
+
+        manifest = build_frontend_manifest_v2(
+            {
+                "schema-version": 2,
+                "levels": [
+                    {
+                        "level-id": "1",
+                        "level-name": "Level 1 - Starter Pack",
+                        "game-data": [
+                            {
+                                "game-id": "1",
+                                "game-type": "normal-non-boss",
+                                "startNode": {"id": 1892, "type": "actor", "label": "Matt Damon"},
+                                "targetNode": {"id": 1461, "type": "actor", "label": "George Clooney"},
+                                "notes": {"text": "Fixture"},
+                                "settings": {},
+                            }
+                        ],
+                    }
+                ],
+            },
+            snapshot_endpoint="/api/v2/export/frontend-snapshot",
+        )
+
+        self.assertEqual(manifest["version"], "2.2.0")
+        self.assertEqual(manifest["source_updated_at"], "2026-03-11T00:00:00+00:00")
+        self.assertEqual(manifest["level_group_count"], 1)
+        self.assertEqual(manifest["normal_game_count"], 1)
+        self.assertEqual(manifest["boss_game_count"], 0)
+        self.assertEqual(manifest["snapshot_endpoint"], "/api/v2/export/frontend-snapshot")
+        mock_get_source_updated_at.assert_called_once()
+        mock_get_project_version.assert_called_once()
 
 
 if __name__ == "__main__":

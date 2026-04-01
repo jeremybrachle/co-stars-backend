@@ -75,6 +75,20 @@ Expected shape:
 
 Use this to decide whether a cached snapshot is stale.
 
+## Static Preload Export
+
+If the frontend wants to ship with a preloaded static snapshot instead of fetching from the running API first, generate the current grouped v2 artifacts with:
+
+```bash
+./venv/bin/python export_frontend_snapshot.py \
+  --api-version v2 \
+  --output dist/frontend-snapshot.json \
+  --manifest-output dist/frontend-manifest.json \
+  --snapshot-endpoint frontend-snapshot.json
+```
+
+That command writes the snapshot and manifest files in the same shape served by the v2 export endpoints.
+
 ### 3. Frontend Snapshot
 
 ```http
@@ -328,10 +342,14 @@ REACT_APP_API_BASE_URL=https://your-backend.example.com
 The backend can generate a static JSON file instead of being called directly by the frontend:
 
 ```bash
-python3 export_frontend_snapshot.py --output frontend_snapshot.json
+./venv/bin/python export_frontend_snapshot.py \
+  --api-version v2 \
+  --output dist/frontend-snapshot.json \
+  --manifest-output dist/frontend-manifest.json \
+  --snapshot-endpoint frontend-snapshot.json
 ```
 
-That file can be bundled or hosted with the frontend app. In that mode, the backend is only needed for snapshot regeneration and database updates.
+Those files can be bundled or hosted with the frontend app. In that mode, the backend is only needed for snapshot regeneration and database updates.
 
 ## Backend Files That Define The Contract
 

@@ -318,6 +318,16 @@ https://<cloudfront-domain>/co-stars/prod/frontend-manifest.json
 
 The manifest then points the frontend at `frontend-snapshot.json`.
 
+When generating the local artifacts that GitHub Actions will publish, use the v2 export command:
+
+```bash
+./venv/bin/python export_frontend_snapshot.py \
+  --api-version v2 \
+  --output dist/frontend-snapshot.json \
+  --manifest-output dist/frontend-manifest.json \
+  --snapshot-endpoint frontend-snapshot.json
+```
+
 ## Frontend Handoff
 
 These are the concrete values and assumptions the frontend team needs from this backend setup.

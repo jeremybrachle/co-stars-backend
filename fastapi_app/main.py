@@ -5,7 +5,7 @@ from pathlib import Path as FilePath
 from fastapi import FastAPI, HTTPException, Query, Body, Path
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from dotenv import load_dotenv
 from typing import List, Optional
 
@@ -36,7 +36,13 @@ from db_helper import (
     get_movies_for_actor as db_get_movies_for_actor,
     movie_exists,
 )
-from frontend_snapshot import build_frontend_manifest, build_frontend_snapshot
+from frontend_snapshot import (
+    build_frontend_manifest,
+    build_frontend_manifest_v2,
+    build_frontend_snapshot,
+    build_frontend_snapshot_v2,
+)
+from levels_contracts import build_v2_levels_export, load_v1_levels, load_v2_levels_document
 from project_version import get_project_version
 from tmdb_api import build_poster_url, build_profile_url
 import json
@@ -65,13 +71,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-LEVELS_EXAMPLE = [
+LEVELS_V1_EXAMPLE = [
     {
         "actor_a": "Matt Damon",
         "actor_b": "George Clooney",
         "stars": 3,
     }
 ]
+
+LEVELS_V2_EXAMPLE = {
+    "schema-version": 2,
+    "levels": [
+        {
+            "level-id": "1",
+            "level-name": "Level 1 - Starter Pack",
+            "game-data": [
+                {
+                    "game-id": "1",
+                    "game-type": "normal-non-boss",
+                    "startNode": {"id": 1892, "type": "actor", "label": "Matt Damon"},
+                    "targetNode": {"id": 8784, "type": "actor", "label": "Daniel Craig"},
+                    "notes": {"text": "Migrated from the legacy flat levels list."},
+                    "settings": {},
+                }
+            ],
+        }
+    ],
+}
 
 ACTORS_EXAMPLE = [
     {
@@ -127,7 +153,7 @@ MOVIES_EXAMPLE = [
 
 FRONTEND_SNAPSHOT_EXAMPLE = {
     "meta": {
-        "version": "2.1.0",
+        "version": "2.2.0",
         "exported_at": "2026-03-11T00:00:00+00:00",
         "actor_count": 2,
         "movie_count": 1,
@@ -149,11 +175,37 @@ FRONTEND_SNAPSHOT_EXAMPLE = {
             "161": [1461, 1892],
         },
     },
-    "levels": LEVELS_EXAMPLE,
+    "levels": LEVELS_V1_EXAMPLE,
+}
+
+FRONTEND_SNAPSHOT_V2_EXAMPLE = {
+    "meta": {
+        "version": "2.2.0",
+        "exported_at": "2026-03-11T00:00:00+00:00",
+        "actor_count": 2,
+        "movie_count": 1,
+        "relationship_count": 2,
+        "level_count": 1,
+        "level_group_count": 1,
+        "normal_game_count": 1,
+        "boss_game_count": 0,
+        "level_schema_version": 2,
+    },
+    "actors": ACTORS_EXAMPLE,
+    "movies": [MOVIES_EXAMPLE[0]],
+    "movie_actors": [
+        {"movie_id": 161, "actor_id": 1461},
+        {"movie_id": 161, "actor_id": 1892},
+    ],
+    "adjacency": {
+        "actor_to_movies": {"1461": [161], "1892": [161]},
+        "movie_to_actors": {"161": [1461, 1892]},
+    },
+    "levels": LEVELS_V2_EXAMPLE["levels"],
 }
 
 FRONTEND_MANIFEST_EXAMPLE = {
-    "version": "2.1.0",
+    "version": "2.2.0",
     "source_updated_at": "2026-03-11T00:00:00+00:00",
     "actor_count": 2,
     "movie_count": 1,
@@ -163,9 +215,24 @@ FRONTEND_MANIFEST_EXAMPLE = {
     "snapshot_endpoint": "/api/export/frontend-snapshot",
 }
 
+FRONTEND_MANIFEST_V2_EXAMPLE = {
+    "version": "2.2.0",
+    "source_updated_at": "2026-03-11T00:00:00+00:00",
+    "actor_count": 2,
+    "movie_count": 1,
+    "relationship_count": 2,
+    "level_count": 1,
+    "level_group_count": 1,
+    "normal_game_count": 1,
+    "boss_game_count": 0,
+    "level_schema_version": 2,
+    "recommended_refresh_interval_hours": 168,
+    "snapshot_endpoint": "/api/v2/export/frontend-snapshot",
+}
+
 HEALTH_EXAMPLE = {
     "status": "ok",
-    "version": "2.1.0",
+    "version": "2.2.0",
 }
 
 MOVIE_SUGGESTIONS_EXAMPLE = [
@@ -377,15 +444,49 @@ def generate_path_endpoint(
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
-# --- Load levels from file (as in Flask) ---
-with open("levels.json", "r") as f:
-    LEVELS = json.load(f)
+# --- Load versioned levels from file ---
+LEVELS_V1 = load_v1_levels()
+LEVELS_V2_DOCUMENT = load_v2_levels_document()
 
 # --- Pydantic Models ---
 class Level(BaseModel):
     actor_a: str
     actor_b: str
     stars: int
+
+
+class LevelNote(BaseModel):
+    text: str = ""
+
+
+class VersionedModel(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class VersionedLevelNode(VersionedModel):
+    id: int
+    type: NodeType
+    label: str
+
+
+class LevelGameV2(VersionedModel):
+    game_id: str = Field(..., alias="game-id")
+    game_type: str = Field(..., alias="game-type")
+    start_node: VersionedLevelNode = Field(..., alias="startNode")
+    target_node: VersionedLevelNode = Field(..., alias="targetNode")
+    notes: LevelNote = Field(default_factory=LevelNote)
+    settings: dict = Field(default_factory=dict)
+
+
+class LevelGroupV2(VersionedModel):
+    level_id: str = Field(..., alias="level-id")
+    level_name: str = Field(..., alias="level-name")
+    game_data: List[LevelGameV2] = Field(default_factory=list, alias="game-data")
+
+
+class LevelsDocumentV2(VersionedModel):
+    schema_version: int = Field(..., alias="schema-version")
+    levels: List[LevelGroupV2] = Field(default_factory=list)
 
 class Actor(BaseModel):
     id: int
@@ -439,6 +540,13 @@ class FrontendSnapshotMeta(BaseModel):
     level_count: int
 
 
+class FrontendSnapshotMetaV2(FrontendSnapshotMeta):
+    level_group_count: int
+    normal_game_count: int
+    boss_game_count: int
+    level_schema_version: int
+
+
 class FrontendAdjacency(BaseModel):
     actor_to_movies: dict[str, List[int]] = Field(default_factory=dict)
     movie_to_actors: dict[str, List[int]] = Field(default_factory=dict)
@@ -453,6 +561,15 @@ class FrontendSnapshot(BaseModel):
     levels: List[Level]
 
 
+class FrontendSnapshotV2(BaseModel):
+    meta: FrontendSnapshotMetaV2
+    actors: List[ActorCatalog]
+    movies: List[MovieCatalog]
+    movie_actors: List[MovieActorLink]
+    adjacency: FrontendAdjacency
+    levels: List[LevelGroupV2]
+
+
 class FrontendManifest(BaseModel):
     version: str
     source_updated_at: str
@@ -462,6 +579,13 @@ class FrontendManifest(BaseModel):
     level_count: int
     recommended_refresh_interval_hours: int
     snapshot_endpoint: str
+
+
+class FrontendManifestV2(FrontendManifest):
+    level_group_count: int
+    normal_game_count: int
+    boss_game_count: int
+    level_schema_version: int
 
 
 class HealthResponse(BaseModel):
@@ -613,18 +737,50 @@ def health_check():
 @app.get(
     "/api/levels",
     response_model=List[Level],
-    summary="Get all levels",
+    summary="Get all legacy v1 levels",
     tags=["Levels"],
     responses={
         200: {
-            "description": "Predefined challenge levels.",
-            "content": {"application/json": {"example": LEVELS_EXAMPLE}},
+            "description": "Legacy flat actor-pair challenge levels.",
+            "content": {"application/json": {"example": LEVELS_V1_EXAMPLE}},
         }
     },
 )
 def get_levels():
-    """Returns all available levels."""
-    return LEVELS
+    """Compatibility alias for the legacy flat v1 levels contract."""
+    return LEVELS_V1
+
+
+@app.get(
+    "/api/v1/levels",
+    response_model=List[Level],
+    summary="Get all v1 levels",
+    tags=["Levels"],
+    responses={
+        200: {
+            "description": "Legacy flat actor-pair challenge levels.",
+            "content": {"application/json": {"example": LEVELS_V1_EXAMPLE}},
+        }
+    },
+)
+def get_levels_v1():
+    return LEVELS_V1
+
+
+@app.get(
+    "/api/v2/levels",
+    response_model=LevelsDocumentV2,
+    summary="Get all v2 grouped levels",
+    tags=["Levels"],
+    responses={
+        200: {
+            "description": "Grouped levels with nested games and typed nodes.",
+            "content": {"application/json": {"example": LEVELS_V2_EXAMPLE}},
+        }
+    },
+)
+def get_levels_v2():
+    return build_v2_levels_export(LEVELS_V2_DOCUMENT)
 
 
 @app.get(
@@ -664,11 +820,11 @@ def get_movies():
 @app.get(
     "/api/export/frontend-manifest",
     response_model=FrontendManifest,
-    summary="Get lightweight frontend refresh metadata",
+    summary="Get lightweight frontend refresh metadata for v1",
     tags=["Export"],
     responses={
         200: {
-            "description": "Snapshot freshness metadata for frontend refresh checks.",
+            "description": "Snapshot freshness metadata for the legacy v1 frontend contract.",
             "content": {"application/json": {"example": FRONTEND_MANIFEST_EXAMPLE}},
         }
     },
@@ -678,17 +834,50 @@ def export_frontend_manifest():
 
     TODO(frontend-refactor): Use this endpoint as the default freshness check before downloading a new snapshot.
     """
-    return build_frontend_manifest(LEVELS)
+    return build_frontend_manifest(LEVELS_V1)
+
+
+@app.get(
+    "/api/v1/export/frontend-manifest",
+    response_model=FrontendManifest,
+    summary="Get lightweight frontend refresh metadata for v1",
+    tags=["Export"],
+    responses={
+        200: {
+            "description": "Snapshot freshness metadata for the legacy v1 frontend contract.",
+            "content": {"application/json": {"example": FRONTEND_MANIFEST_EXAMPLE}},
+        }
+    },
+)
+def export_frontend_manifest_v1():
+    return build_frontend_manifest(LEVELS_V1, snapshot_endpoint="/api/v1/export/frontend-snapshot")
+
+
+@app.get(
+    "/api/v2/export/frontend-manifest",
+    response_model=FrontendManifestV2,
+    summary="Get lightweight frontend refresh metadata for v2",
+    tags=["Export"],
+    responses={
+        200: {
+            "description": "Snapshot freshness metadata for the grouped v2 frontend contract.",
+            "content": {"application/json": {"example": FRONTEND_MANIFEST_V2_EXAMPLE}},
+        }
+    },
+)
+def export_frontend_manifest_v2_endpoint():
+    levels_v2 = build_v2_levels_export(LEVELS_V2_DOCUMENT)
+    return build_frontend_manifest_v2(levels_v2)
 
 
 @app.get(
     "/api/export/frontend-snapshot",
     response_model=FrontendSnapshot,
-    summary="Export the full graph for frontend-local gameplay",
+    summary="Export the full graph for frontend-local gameplay in v1 format",
     tags=["Export"],
     responses={
         200: {
-            "description": "Full actor/movie graph plus adjacency lists for frontend-local state.",
+            "description": "Full actor/movie graph plus adjacency lists for the legacy v1 contract.",
             "content": {"application/json": {"example": FRONTEND_SNAPSHOT_EXAMPLE}},
         }
     },
@@ -699,7 +888,40 @@ def export_frontend_snapshot():
     TODO(frontend-refactor): Make this export contract the long-term frontend sync surface.
     TODO(frontend-refactor): Move legacy gameplay-specific lookup endpoints behind a compatibility namespace once the frontend owns graph traversal.
     """
-    return build_frontend_snapshot(LEVELS)
+    return build_frontend_snapshot(LEVELS_V1)
+
+
+@app.get(
+    "/api/v1/export/frontend-snapshot",
+    response_model=FrontendSnapshot,
+    summary="Export the full graph in v1 format",
+    tags=["Export"],
+    responses={
+        200: {
+            "description": "Full actor/movie graph plus adjacency lists for the legacy v1 contract.",
+            "content": {"application/json": {"example": FRONTEND_SNAPSHOT_EXAMPLE}},
+        }
+    },
+)
+def export_frontend_snapshot_v1():
+    return build_frontend_snapshot(LEVELS_V1)
+
+
+@app.get(
+    "/api/v2/export/frontend-snapshot",
+    response_model=FrontendSnapshotV2,
+    summary="Export the full graph in v2 grouped-level format",
+    tags=["Export"],
+    responses={
+        200: {
+            "description": "Full actor/movie graph plus grouped v2 levels for frontend-local state.",
+            "content": {"application/json": {"example": FRONTEND_SNAPSHOT_V2_EXAMPLE}},
+        }
+    },
+)
+def export_frontend_snapshot_v2_endpoint():
+    levels_v2 = build_v2_levels_export(LEVELS_V2_DOCUMENT)
+    return build_frontend_snapshot_v2(levels_v2)
 
 @app.get(
     "/api/actor/{name}",

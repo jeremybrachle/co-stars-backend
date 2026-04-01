@@ -6,6 +6,20 @@ The format follows Keep a Changelog and the project uses Semantic Versioning.
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-03-30
+
+### Added
+- Explicit versioned level and snapshot endpoints for parallel frontend migration: `/api/v1/...` and `/api/v2/...`.
+- New grouped v2 level authoring contract in `levels.json` with named levels, nested `game-data`, typed `startNode` and `targetNode`, and room for future boss-mode settings.
+- New shared `levels_contracts.py` loader/validator so v2 level nodes are resolved against the current actor/movie graph before export.
+- Dedicated internal migration note for the versioned levels rollout and a frontend-specific v2 handoff document.
+
+### Changed
+- The active authored levels source now lives in the grouped v2 `levels.json` document, while legacy flat v1 compatibility levels are frozen in `levels_v1.json`.
+- `GET /api/export/frontend-snapshot` and `GET /api/export/frontend-manifest` now behave as v1 compatibility aliases, while new v2 endpoints expose grouped level payloads and grouped-level metadata.
+- Project version bumped to `2.2.0` because the new API surface is additive and keeps v1 intact.
+- API unit tests and snapshot builder tests now cover both v1 and v2 contracts.
+
 ## [2.1.0] - 2026-03-14
 
 ### Added
